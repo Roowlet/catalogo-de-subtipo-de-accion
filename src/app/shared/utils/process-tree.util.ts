@@ -151,18 +151,19 @@ export const DEFAULT_PROCESS_TREE: ProcessMenuNode[] = [
   {
     id: 'clasificadores-catalogos',
     label: 'Clasificadores y catálogos',
-    comingSoon: true,
     children: [
       { id: 'clasificadores', label: 'Clasificadores', comingSoon: true, expandable: true },
       {
         id: 'catalogos',
         label: 'Catálogos',
-        comingSoon: true,
         children: [
+          // Sección APM del arquetipo: oculta del menú (el diseño de este proceso no la muestra), pero
+          // conservada para que las migas de pan de «Modificación de la APM» y «Catálogo de Versiones» sigan
+          // resolviendo vía findProcessPathById.
           {
             id: 'gestion-asignacion-presupuestaria-multianual',
             label: 'Gestión de Asignación Presupuestaria Multianual',
-            sectionHeader: true,
+            hiddenInMenu: true,
             children: [
               { id: 'catalogo-reportes-apm', label: 'Catálogo de reportes de la APM', comingSoon: true },
               { id: 'catalogo-archivos-apm', label: 'Catálogo de archivos de la APM', comingSoon: true },
@@ -183,6 +184,37 @@ export const DEFAULT_PROCESS_TREE: ProcessMenuNode[] = [
               },
             ],
           },
+          // Catálogos del diseño (Figma nodes 24938-26018 / 26102): lista plana; cada catálogo es un nodo
+          // expandible con sus hojas «Documentos y registros» y «Consultas y reportes». Solo «Catálogo de
+          // subtipo de acción» está implementado; el resto queda como «Próximamente».
+          {
+            id: 'catalogo-subtipo-accion',
+            label: 'Catálogo de subtipo de acción',
+            children: [
+              {
+                id: 'catalogo-subtipo-accion-documentos',
+                label: 'Documentos y registros de subtipo de acción',
+                moduleRoute: '/procesos/catalogo-subtipo-accion',
+                createRoute: '/procesos/catalogo-subtipo-accion/solicitud',
+                documentOptions: ['Solicitud de Subtipo de Acción'],
+                documentCreateOptions: [
+                  {
+                    label: 'Solicitud de Subtipo de Acción',
+                    route: '/procesos/catalogo-subtipo-accion/solicitud',
+                    actionTypes: ['Creación'],
+                  },
+                ],
+                actionTypeOptions: ['Creación'],
+              },
+              {
+                id: 'catalogo-subtipo-accion-consultas',
+                label: 'Consultas y reportes de subtipo de acción',
+                comingSoon: true,
+              },
+            ],
+          },
+          { id: 'catalogo-actividades', label: 'Catálogo de actividades', comingSoon: true, expandable: true },
+          { id: 'catalogo-ambito-institucional', label: 'Catálogo de ámbito institucional', comingSoon: true, expandable: true },
         ],
       },
     ],

@@ -53,8 +53,8 @@ export const USUARIOS_DEMO: UsuarioDemo[] = [
     nombres: 'Juan Doe',
     apellidoPaterno: 'Perez',
     apellidoMaterno: 'Perez',
-    descripcion: 'Configurador: administra catálogos y tipos de documento',
-    perfiles: [perfil('perfil-juan-configurador', 'CONFIGURADOR', 'Configurador', 'Configurador del proceso')],
+    descripcion: 'Creador: registra documentos del catálogo',
+    perfiles: [perfil('perfil-juan-configurador', 'CONFIGURADOR', 'Creador', 'Creador del proceso')],
   },
   {
     id: 'usr-luis',

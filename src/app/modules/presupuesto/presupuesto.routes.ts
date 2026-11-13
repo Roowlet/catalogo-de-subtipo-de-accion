@@ -1,7 +1,30 @@
 import { Routes } from '@angular/router';
 
-/** Procesos del área de presupuesto: «Generación de reporte APM» y «Modificación de la APM». */
+/** Procesos del área de presupuesto: «Generación de reporte APM», «Modificación de la APM» y «Catálogo de subtipo de acción». */
 export const PRESUPUESTO_ROUTES: Routes = [
+  {
+    // Proceso «Catálogo de subtipo de acción»: Documentos y registros (pantalla principal).
+    path: 'procesos/catalogo-subtipo-accion',
+    loadComponent: () =>
+      import('./catalogo-subtipo-accion/pages/documents/catalogo-subtipo-accion-documents.component').then(
+        (m) => m.CatalogoSubtipoAccionDocumentsComponent,
+      ),
+  },
+  {
+    // Solicitud (formulario «Registro del catálogo»), que abre «Crear documento».
+    path: 'procesos/catalogo-subtipo-accion/solicitud',
+    loadComponent: () =>
+      import('./catalogo-subtipo-accion/pages/solicitud/catalogo-subtipo-accion-request.component').then(
+        (m) => m.CatalogoSubtipoAccionRequestComponent,
+      ),
+  },
+  {
+    path: 'procesos/catalogo-subtipo-accion/solicitud/:id',
+    loadComponent: () =>
+      import('./catalogo-subtipo-accion/pages/solicitud/catalogo-subtipo-accion-request.component').then(
+        (m) => m.CatalogoSubtipoAccionRequestComponent,
+      ),
+  },
   {
     // Proceso «Generación de reporte APM»: Catálogo de Versiones (importación de estructura).
     path: 'procesos/generacion-reporte-apm',

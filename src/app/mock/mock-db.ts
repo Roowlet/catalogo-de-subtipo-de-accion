@@ -13,6 +13,10 @@ import {
   ModificacionApmDatos,
   NOMBRE_DOCUMENTO as NOMBRE_DOCUMENTO_APM,
 } from '../modules/presupuesto/modificacion-apm/models/modificacion-apm.model';
+import {
+  CODIGO_DOCUMENTO as CODIGO_DOCUMENTO_STA,
+  NOMBRE_DOCUMENTO as NOMBRE_DOCUMENTO_STA,
+} from '../modules/presupuesto/catalogo-subtipo-accion/models/catalogo-subtipo-accion.model';
 import { USUARIOS_DEMO, UsuarioDemo } from './usuarios-demo';
 
 /**
@@ -21,7 +25,7 @@ import { USUARIOS_DEMO, UsuarioDemo } from './usuarios-demo';
  */
 
 const CLAVE = 'catalogo-subtipo-accion:datos';
-const VERSION = 3;
+const VERSION = 4;
 
 export interface NotificacionMock extends NotificacionResponse {
   /** Destinatario: un usuario puntual o, si no hay, todos los perfiles con este rol. */
@@ -37,12 +41,15 @@ export interface DatosTaller {
   correlativoDocumento: number;
   /** Correlativo propio de los documentos SMAPM, independiente del de SRCB. */
   correlativoDocumentoApm: number;
+  /** Correlativo propio de los documentos SSTA (Catálogo de subtipo de acción). */
+  correlativoDocumentoSta: number;
   correlativoRegistro: number;
   secuencia: number;
 }
 
 export const TIPO_DOCUMENTO = { id: 'td-srcb', codigo: CODIGO_DOCUMENTO, nombre: NOMBRE_DOCUMENTO };
 export const TIPO_DOCUMENTO_APM = { id: 'td-smapm', codigo: CODIGO_DOCUMENTO_APM, nombre: NOMBRE_DOCUMENTO_APM };
+export const TIPO_DOCUMENTO_STA = { id: 'td-ssta', codigo: CODIGO_DOCUMENTO_STA, nombre: NOMBRE_DOCUMENTO_STA };
 export const ENTIDAD_CREADORA = { id: 'ent-mef', codMef: '0001', siglas: 'MEF', nombre: 'Ministerio de Economía y Finanzas' };
 export const UNIDAD_CREADORA = { id: 'uo-oga', sigla: 'OGA', nombre: 'Oficina General de Administración' };
 
@@ -174,6 +181,23 @@ function modificacionApm(detalle: string): ModificacionApmDatos {
   return { gastos: GASTOS_APM.map((g) => ({ ...g })), detalle };
 }
 
+interface SemillaSta {
+  creada: string;
+  estado: 'ELABORADO' | 'VERIFICADO' | 'APROBADO' | 'OBSERVADO' | 'RECHAZADO';
+  subtipo: string;
+  comentario?: string;
+}
+
+/** Documentos de ejemplo del «Catálogo de subtipo de acción» (Figma node 20016-187919), de más antiguo a más reciente. */
+const SEMILLAS_STA: SemillaSta[] = [
+  { creada: '2023-09-10', estado: 'APROBADO', subtipo: 'Habilitación de crédito presupuestario' },
+  { creada: '2023-12-15', estado: 'APROBADO', subtipo: 'Anulación de crédito presupuestario' },
+  { creada: '2024-01-20', estado: 'APROBADO', subtipo: 'Transferencia de partidas' },
+  { creada: '2024-06-15', estado: 'APROBADO', subtipo: 'Modificación en el nivel funcional programático' },
+  { creada: '2025-08-31', estado: 'APROBADO', subtipo: 'Incorporación de mayores ingresos públicos' },
+  { creada: '2025-09-24', estado: 'APROBADO', subtipo: 'Reducción de marco presupuestal' },
+];
+
 function enFecha(dia: string, horas: number, dias = 0): string {
   const fecha = new Date(`${dia}T00:00:00`);
   fecha.setDate(fecha.getDate() + dias);
@@ -189,6 +213,7 @@ function crearDatosIniciales(): DatosTaller {
     notificaciones: [],
     correlativoDocumento: 0,
     correlativoDocumentoApm: 0,
+    correlativoDocumentoSta: 0,
     correlativoRegistro: 0,
     secuencia: 0,
   };
@@ -293,6 +318,44 @@ function crearDatosIniciales(): DatosTaller {
           archivo: { nombreOriginal: `Sustento de modificación APM ${String(datos.correlativoDocumentoApm).padStart(2, '0')}.pdf`, storagePath: 'taller' },
         },
       ],
+      historialEstados: historial,
+    });
+  }
+
+  // ── Solicitudes del Catálogo de subtipo de acción (SSTA) ──
+  for (const semilla of SEMILLAS_STA) {
+    const id = nuevoId(datos, 'sol');
+    datos.correlativoDocumentoSta += 1;
+    const creada = enFecha(semilla.creada, 9);
+    // Número correlativo simple (0001, 0002, …), como en el diseño.
+    const numero = String(datos.correlativoDocumentoSta).padStart(4, '0');
+    const historial: HistorialItem[] = [
+      filaHistorial(datos, null, 'NUEVO', creada, ana, ROL_CREADOR),
+      filaHistorial(datos, 'NUEVO', 'ELABORADO', enFecha(semilla.creada, 9, 0), ana, ROL_CREADOR),
+    ];
+    if (semilla.estado !== 'ELABORADO') {
+      historial.push(filaHistorial(datos, 'ELABORADO', 'VERIFICADO', enFecha(semilla.creada, 10, 1), ana, ROL_CREADOR));
+    }
+    if (['APROBADO', 'OBSERVADO', 'RECHAZADO'].includes(semilla.estado)) {
+      historial.push(filaHistorial(datos, 'VERIFICADO', semilla.estado, enFecha(semilla.creada, 11, 2), luis, ROL_APROBADOR, semilla.comentario ?? null));
+    }
+    const ultima = historial[historial.length - 1].createdAt;
+
+    datos.solicitudes.push({
+      id,
+      numero,
+      catDocumento: TIPO_DOCUMENTO_STA,
+      tipoAccion: 'creacion',
+      estado: semilla.estado,
+      asuntoMotivo: `[DIRECCIÓN GENERAL DE PRESUPUESTO PÚBLICO] ${semilla.subtipo}`,
+      entidadCreadora: ENTIDAD_CREADORA,
+      unidadCreadora: UNIDAD_CREADORA,
+      creador: { id: ana.id, nombres: ana.nombres, apellidoPaterno: ana.apellidoPaterno, apellidoMaterno: ana.apellidoMaterno },
+      fechaRegistro: creada,
+      createdAt: creada,
+      updatedAt: ultima,
+      itemsCuenta: [],
+      sustentos: [],
       historialEstados: historial,
     });
   }

@@ -42,7 +42,7 @@ const ESTADOS_APROBADOR: string[] = [ESTADO.VERIFICADO, ESTADO.APROBADO, ESTADO.
 // El CREADOR ve todos los estados de su ciclo — para auditoría y trazabilidad visual completa
 const ESTADOS_CREADOR: string[] = [ESTADO.ELABORADO, ESTADO.VERIFICADO, ESTADO.APROBADO, ESTADO.OBSERVADO, ESTADO.RECHAZADO, ESTADO.ELIMINADO];
 
-type DocumentsRecordsRoleMode = 'creator' | 'approver' | 'readOnly';
+type DocumentsRecordsRoleMode = 'creator' | 'configurator' | 'approver' | 'readOnly';
 
 /**
  * Pantalla «Documentos y registros» de un proceso, armada desde un `DocumentsRecordsConfig`: breadcrumb, título,
@@ -452,6 +452,15 @@ export class DocumentsRecordsPageComponent implements OnChanges {
       };
     }
 
+    if (roleMode === 'configurator') {
+      // El configurador administra el catálogo: ve todos los documentos y puede crear («Crear documento»),
+      // pero no verifica ni aprueba (sin acción principal).
+      return {
+        ...this.config,
+        accionPrincipal: undefined,
+      };
+    }
+
     if (roleMode === 'readOnly') {
       return {
         ...this.config,
@@ -756,6 +765,10 @@ export class DocumentsRecordsPageComponent implements OnChanges {
 
     if (role === 'creator') {
       return 'creator';
+    }
+
+    if (role === 'configurator') {
+      return 'configurator';
     }
 
     return 'readOnly';

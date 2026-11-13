@@ -10823,7 +10823,7 @@ export const MANIFIESTO_UI_KIT: readonly FichaComponente[] = [
       "siaf-pagination",
       "siaf-table-controls"
     ],
-    "sinUso": true
+    "sinUso": false
   },
   {
     "selector": "siaf-side-nav",
@@ -12316,6 +12316,13 @@ export const MANIFIESTO_UI_KIT: readonly FichaComponente[] = [
         "porDefecto": "false",
         "requerida": false,
         "descripcion": null
+      },
+      {
+        "nombre": "verifyLabel",
+        "tipo": "string",
+        "porDefecto": "'Verificar'",
+        "requerida": false,
+        "descripcion": "Texto del botón Verificar (p. ej. «Verificar y enviar»)."
       }
     ],
     "eventos": [

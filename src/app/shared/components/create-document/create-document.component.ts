@@ -154,7 +154,7 @@ const CREATE_DOCUMENT_PROCESSES: CreateDocumentProcessOption[] = collectProcessO
                       <div class="absolute left-0 right-0 top-[calc(100%+4px)] z-50" siafFoco [siafFocoAtrapar]="false" (siafFocoEscape)="closeSelect()" (siafFocoSalida)="closeSelect()">
                         <siaf-select-options
                           [options]="fieldOptions(field)"
-                          [selectedValue]="field.value || ''"
+                          [selectedValue]="''"
                           (selected)="onOptionSelected(field, $event)"
                         />
                       </div>

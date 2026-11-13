@@ -1,0 +1,269 @@
+<div class="min-h-[calc(100vh-56px)] bg-[var(--sys-color-bg-surfaces-surface-lowest)] text-text">
+  <!-- Cabecera (migas, título, estado «Nuevo» y botonera del creador) la pinta el layout de solicitudes. -->
+  <siaf-solicitude-page-layout
+    [breadcrumbs]="breadcrumbs"
+    role="creator"
+    state="new"
+    [heading]="heading"
+    secondaryText="Creación"
+    [showReturn]="true"
+    [saveDisabled]="true"
+    [verifyDisabled]="true"
+    (returned)="regresar()"
+    (canceled)="regresar()"
+  >
+    <siaf-solicitude-info-card [fields]="camposEntidad()" [captureOpenDate]="true" />
+
+    <!-- ── Registro del catálogo: placeholder con (+) Añadir o formulario «Detalles del catálogo» ── -->
+    <siaf-solicitude-form-card title="Registro del catálogo">
+      <div card-actions class="flex items-center gap-siaf-sm">
+        @if (!mostrandoFormulario()) {
+          <siaf-button variant="accent" size="md" icon="add" [iconOnly]="true" ariaLabel="Añadir" (click)="anadir()" />
+        } @else {
+          <siaf-button variant="outline" size="md" icon="close" (click)="cancelarRegistro()">Cancelar</siaf-button>
+          <siaf-button variant="filled" size="md" [disabled]="!formValido()" (click)="aceptarRegistro()">Aceptar</siaf-button>
+        }
+      </div>
+
+      @if (!mostrandoFormulario()) {
+        <div class="flex min-h-[49px] items-center rounded-siaf-md bg-[var(--sys-color-bg-surfaces-surface-low)] px-siaf-md py-siaf-sm">
+          <p class="m-0 text-sm text-[var(--sys-color-text-neutral-medium)]">Por favor, haga clic en el botón (+) para añadir el registro.</p>
+        </div>
+      } @else {
+        <h3 class="m-0 text-sm font-bold uppercase text-text">Detalles del catálogo</h3>
+
+        <!-- Código: deshabilitado (se asigna al aceptar la solicitud). -->
+        <div class="md:max-w-[calc(50%-0.5rem)]">
+          <siaf-input
+            placeholder="Código"
+            [required]="true"
+            [disabled]="true"
+            [value]="registro().codigo"
+          />
+        </div>
+
+        <!-- Selectores: Proceso / Rol / Perfil / Tipo de acción. Al elegir, la opción se muestra en una card con X
+             para quitarla; quitar una limpia también las de abajo (cadena inversa). -->
+        <div class="grid gap-siaf-lg md:grid-cols-2">
+          <!-- Proceso (siempre habilitado; la lupa se deshabilita al tener selección) -->
+          <div class="flex flex-col gap-siaf-xs">
+            <div class="flex min-h-10 items-center justify-between gap-siaf-md">
+              <h4 class="m-0 text-sm font-bold text-[var(--sys-color-text-neutral-high)]">Proceso <span class="text-[var(--sys-color-text-brand-accent)]">*</span></h4>
+              <siaf-button [variant]="procesoSel() ? 'outline' : 'accent'" size="md" icon="search" [iconOnly]="true" [disabled]="!!procesoSel()" ariaLabel="Buscar proceso" (click)="abrirProceso()" />
+            </div>
+            @if (procesoSel(); as p) {
+              <div class="flex min-h-[60px] items-center gap-siaf-lg rounded-siaf-md border border-[var(--sys-color-border-states-enabled)] bg-surface px-siaf-md py-siaf-sm">
+                <span class="h-6 w-1 shrink-0 rounded-full bg-[var(--sys-color-bg-brand-primary)]" aria-hidden="true"></span>
+                <div class="w-[200px] shrink-0">
+                  <p class="m-0 text-[11px] uppercase tracking-[0.5px] text-[var(--sys-color-text-neutral-low)]">Código proceso</p>
+                  <p class="m-0 text-sm font-bold text-[var(--sys-color-text-neutral-high)]">{{ p.codigo }}</p>
+                </div>
+                <div class="min-w-0 flex-1">
+                  <p class="m-0 text-[11px] uppercase tracking-[0.5px] text-[var(--sys-color-text-neutral-low)]">Nombre proceso</p>
+                  <p class="m-0 text-sm font-bold text-[var(--sys-color-text-neutral-high)]">{{ p.nombre }}</p>
+                </div>
+                <button type="button" class="inline-flex size-8 shrink-0 items-center justify-center rounded-siaf-md text-[var(--sys-color-text-neutral-low)] transition hover:bg-[var(--sys-color-bg-states-light-hover)]" aria-label="Quitar proceso" (click)="limpiarProceso()">
+                  <siaf-icon name="close" [size]="20" />
+                </button>
+              </div>
+            } @else {
+              <div class="rounded-siaf-md bg-[var(--sys-color-bg-surfaces-surface-low)] px-siaf-md py-siaf-sm">
+                <p class="m-0 text-sm text-[var(--sys-color-text-neutral-medium)]">No se ha seleccionado ninguna opción. Haga clic en el botón para realizar una selección.</p>
+              </div>
+            }
+          </div>
+
+          <!-- Rol (se habilita al elegir Proceso) -->
+          <div class="flex flex-col gap-siaf-xs">
+            <div class="flex min-h-10 items-center justify-between gap-siaf-md">
+              <h4 class="m-0 text-sm font-bold text-[var(--sys-color-text-neutral-high)]">Rol <span class="text-[var(--sys-color-text-brand-accent)]">*</span></h4>
+              <siaf-button [variant]="(rolHabilitado() && !rolSel()) ? 'accent' : 'outline'" size="md" icon="search" [iconOnly]="true" [disabled]="!rolHabilitado() || !!rolSel()" ariaLabel="Buscar rol" (click)="abrirRol()" />
+            </div>
+            @if (rolSel(); as r) {
+              <div class="flex min-h-[60px] items-center gap-siaf-lg rounded-siaf-md border border-[var(--sys-color-border-states-enabled)] bg-surface px-siaf-md py-siaf-sm">
+                <span class="h-6 w-1 shrink-0 rounded-full bg-[var(--sys-color-bg-brand-primary)]" aria-hidden="true"></span>
+                <div class="w-[200px] shrink-0">
+                  <p class="m-0 text-[11px] uppercase tracking-[0.5px] text-[var(--sys-color-text-neutral-low)]">Código rol</p>
+                  <p class="m-0 text-sm font-bold text-[var(--sys-color-text-neutral-high)]">{{ r.codigo }}</p>
+                </div>
+                <div class="min-w-0 flex-1">
+                  <p class="m-0 text-[11px] uppercase tracking-[0.5px] text-[var(--sys-color-text-neutral-low)]">Nombre rol</p>
+                  <p class="m-0 text-sm font-bold text-[var(--sys-color-text-neutral-high)]">{{ r.nombre }}</p>
+                </div>
+                <button type="button" class="inline-flex size-8 shrink-0 items-center justify-center rounded-siaf-md text-[var(--sys-color-text-neutral-low)] transition hover:bg-[var(--sys-color-bg-states-light-hover)]" aria-label="Quitar rol" (click)="limpiarRol()">
+                  <siaf-icon name="close" [size]="20" />
+                </button>
+              </div>
+            } @else {
+              <div class="rounded-siaf-md bg-[var(--sys-color-bg-surfaces-surface-low)] px-siaf-md py-siaf-sm">
+                <p class="m-0 text-sm text-[var(--sys-color-text-neutral-medium)]">No se ha seleccionado ninguna opción. Haga clic en el botón para realizar una selección.</p>
+              </div>
+            }
+          </div>
+
+          <!-- Perfil (se habilita al elegir Rol) -->
+          <div class="flex flex-col gap-siaf-xs">
+            <div class="flex min-h-10 items-center justify-between gap-siaf-md">
+              <h4 class="m-0 text-sm font-bold text-[var(--sys-color-text-neutral-high)]">Perfil <span class="text-[var(--sys-color-text-brand-accent)]">*</span></h4>
+              <siaf-button [variant]="(perfilHabilitado() && !perfilSel()) ? 'accent' : 'outline'" size="md" icon="search" [iconOnly]="true" [disabled]="!perfilHabilitado() || !!perfilSel()" ariaLabel="Buscar perfil" (click)="abrirPerfil()" />
+            </div>
+            @if (perfilSel(); as pf) {
+              <div class="flex min-h-[60px] items-center gap-siaf-lg rounded-siaf-md border border-[var(--sys-color-border-states-enabled)] bg-surface px-siaf-md py-siaf-sm">
+                <span class="h-6 w-1 shrink-0 rounded-full bg-[var(--sys-color-bg-brand-primary)]" aria-hidden="true"></span>
+                <div class="w-[200px] shrink-0">
+                  <p class="m-0 text-[11px] uppercase tracking-[0.5px] text-[var(--sys-color-text-neutral-low)]">Código perfil</p>
+                  <p class="m-0 text-sm font-bold text-[var(--sys-color-text-neutral-high)]">{{ pf.codigo }}</p>
+                </div>
+                <div class="min-w-0 flex-1">
+                  <p class="m-0 text-[11px] uppercase tracking-[0.5px] text-[var(--sys-color-text-neutral-low)]">Nombre perfil</p>
+                  <p class="m-0 text-sm font-bold text-[var(--sys-color-text-neutral-high)]">{{ pf.nombre }}</p>
+                </div>
+                <button type="button" class="inline-flex size-8 shrink-0 items-center justify-center rounded-siaf-md text-[var(--sys-color-text-neutral-low)] transition hover:bg-[var(--sys-color-bg-states-light-hover)]" aria-label="Quitar perfil" (click)="limpiarPerfil()">
+                  <siaf-icon name="close" [size]="20" />
+                </button>
+              </div>
+            } @else {
+              <div class="rounded-siaf-md bg-[var(--sys-color-bg-surfaces-surface-low)] px-siaf-md py-siaf-sm">
+                <p class="m-0 text-sm text-[var(--sys-color-text-neutral-medium)]">No se ha seleccionado ninguna opción. Haga clic en el botón para realizar una selección.</p>
+              </div>
+            }
+          </div>
+
+          <!-- Tipo de acción (se habilita al elegir Perfil) -->
+          <div class="flex flex-col gap-siaf-xs">
+            <div class="flex min-h-10 items-center justify-between gap-siaf-md">
+              <h4 class="m-0 text-sm font-bold text-[var(--sys-color-text-neutral-high)]">Tipo de acción <span class="text-[var(--sys-color-text-brand-accent)]">*</span></h4>
+              <siaf-button [variant]="(tipoHabilitado() && !tipoSel()) ? 'accent' : 'outline'" size="md" icon="search" [iconOnly]="true" [disabled]="!tipoHabilitado() || !!tipoSel()" ariaLabel="Buscar tipo de acción" (click)="abrirTipo()" />
+            </div>
+            @if (tipoSel(); as t) {
+              <div class="flex min-h-[60px] items-center gap-siaf-lg rounded-siaf-md border border-[var(--sys-color-border-states-enabled)] bg-surface px-siaf-md py-siaf-sm">
+                <span class="h-6 w-1 shrink-0 rounded-full bg-[var(--sys-color-bg-brand-primary)]" aria-hidden="true"></span>
+                <div class="w-[200px] shrink-0">
+                  <p class="m-0 text-[11px] uppercase tracking-[0.5px] text-[var(--sys-color-text-neutral-low)]">Código tipo de acción</p>
+                  <p class="m-0 text-sm font-bold text-[var(--sys-color-text-neutral-high)]">{{ t.codigo }}</p>
+                </div>
+                <div class="min-w-0 flex-1">
+                  <p class="m-0 text-[11px] uppercase tracking-[0.5px] text-[var(--sys-color-text-neutral-low)]">Nombre tipo de acción</p>
+                  <p class="m-0 text-sm font-bold text-[var(--sys-color-text-neutral-high)]">{{ t.nombre }}</p>
+                </div>
+                <button type="button" class="inline-flex size-8 shrink-0 items-center justify-center rounded-siaf-md text-[var(--sys-color-text-neutral-low)] transition hover:bg-[var(--sys-color-bg-states-light-hover)]" aria-label="Quitar tipo de acción" (click)="limpiarTipo()">
+                  <siaf-icon name="close" [size]="20" />
+                </button>
+              </div>
+            } @else {
+              <div class="rounded-siaf-md bg-[var(--sys-color-bg-surfaces-surface-low)] px-siaf-md py-siaf-sm">
+                <p class="m-0 text-sm text-[var(--sys-color-text-neutral-medium)]">No se ha seleccionado ninguna opción. Haga clic en el botón para realizar una selección.</p>
+              </div>
+            }
+          </div>
+        </div>
+
+        <!-- Subtipo de acción -->
+        <div class="md:max-w-[calc(50%-0.5rem)]">
+          <siaf-input
+            label="Subtipo de acción"
+            placeholder="Nombre"
+            [required]="true"
+            [disabled]="!subtipoHabilitado()"
+            [value]="registro().subtipoAccion"
+            (valueChange)="actualizar('subtipoAccion', $any($event))"
+          />
+        </div>
+
+        <!-- Vigencia -->
+        <div class="flex flex-col gap-siaf-sm">
+          <h3 class="m-0 text-sm font-bold uppercase text-text">Vigencia</h3>
+          <div class="grid items-start gap-siaf-lg md:grid-cols-3">
+            <siaf-radio-group
+              label="Estado"
+              name="estado-vigencia"
+              [inline]="true"
+              [disabled]="true"
+              [options]="opcionesEstado"
+              [value]="registro().estado"
+            />
+            <div class="flex flex-col gap-siaf-xs">
+              <siaf-date-time-picker
+                label="Fecha desde"
+                [fullWidth]="true"
+                [defaultToToday]="false"
+                [disabled]="true"
+                [value]="registro().fechaDesde"
+              />
+              <p class="m-0 text-[11px] text-[var(--sys-color-text-neutral-medium)]">Será asignada cuando se acepte el requerimiento de solicitud.</p>
+            </div>
+            <siaf-date-time-picker
+              label="Fecha hasta"
+              [fullWidth]="true"
+              [defaultToToday]="false"
+              [disabled]="true"
+              [value]="registro().fechaHasta"
+            />
+          </div>
+        </div>
+      }
+    </siaf-solicitude-form-card>
+  </siaf-solicitude-page-layout>
+
+  <!-- ── Overlays de selección (Proceso → Rol → Perfil → Tipo de acción) ── -->
+  <siaf-selection-side-nav
+    [open]="procesoAbierto()"
+    title="Seleccionar proceso"
+    mode="single"
+    idKey="id"
+    searchPlaceholder="Buscar"
+    [columns]="columnasProceso"
+    [rows]="filasProceso()"
+    [selectedIds]="idsProceso()"
+    [searchValue]="busquedaProceso()"
+    (searchChange)="busquedaProceso.set($event)"
+    (selectionChange)="idsProceso.set($event)"
+    (accepted)="aceptarProceso($event)"
+    (closed)="procesoAbierto.set(false)"
+  />
+  <siaf-selection-side-nav
+    [open]="rolAbierto()"
+    title="Seleccionar rol"
+    mode="single"
+    idKey="id"
+    searchPlaceholder="Buscar"
+    [columns]="columnasRol"
+    [rows]="filasRol()"
+    [selectedIds]="idsRol()"
+    [searchValue]="busquedaRol()"
+    (searchChange)="busquedaRol.set($event)"
+    (selectionChange)="idsRol.set($event)"
+    (accepted)="aceptarRol($event)"
+    (closed)="rolAbierto.set(false)"
+  />
+  <siaf-selection-side-nav
+    [open]="perfilAbierto()"
+    title="Seleccionar perfil"
+    mode="single"
+    idKey="id"
+    searchPlaceholder="Buscar"
+    [columns]="columnasPerfil"
+    [rows]="filasPerfil()"
+    [selectedIds]="idsPerfil()"
+    [searchValue]="busquedaPerfil()"
+    (searchChange)="busquedaPerfil.set($event)"
+    (selectionChange)="idsPerfil.set($event)"
+    (accepted)="aceptarPerfil($event)"
+    (closed)="perfilAbierto.set(false)"
+  />
+  <siaf-selection-side-nav
+    [open]="tipoAbierto()"
+    title="Seleccionar tipo de acción"
+    mode="single"
+    idKey="id"
+    searchPlaceholder="Buscar"
+    [columns]="columnasTipo"
+    [rows]="filasTipo()"
+    [selectedIds]="idsTipo()"
+    [searchValue]="busquedaTipo()"
+    (searchChange)="busquedaTipo.set($event)"
+    (selectionChange)="idsTipo.set($event)"
+    (accepted)="aceptarTipo($event)"
+    (closed)="tipoAbierto.set(false)"
+  />
+</div>
