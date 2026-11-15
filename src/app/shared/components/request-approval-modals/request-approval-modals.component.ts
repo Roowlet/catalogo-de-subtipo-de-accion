@@ -78,6 +78,7 @@ import { SnackbarComponent, SnackbarVariant } from '../../ui/snackbar/snackbar.c
     <siaf-modal
       variant="verify"
       [open]="verifyOpen"
+      [description]="verifyDescription"
       confirmVariant="primary"
       confirmLabel="Aceptar"
       cancelLabel="Cancelar"
@@ -163,6 +164,8 @@ export class RequestApprovalModalsComponent {
   // ── Apertura de cada modal (el padre es dueño del estado) ──
   @Input() saveOpen = false;
   @Input() verifyOpen = false;
+  /** Descripción del modal de verificar; vacía usa el texto del preset («La solicitud será verificada.»). */
+  @Input() verifyDescription = '';
   @Input() deleteOpen = false;
   @Input() approveOpen = false;
   @Input() observeOpen = false;

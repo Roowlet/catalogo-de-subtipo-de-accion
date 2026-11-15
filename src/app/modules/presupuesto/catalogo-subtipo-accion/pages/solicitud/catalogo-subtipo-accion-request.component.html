@@ -3,32 +3,144 @@
   <siaf-solicitude-page-layout
     [breadcrumbs]="breadcrumbs"
     role="creator"
-    state="new"
-    [heading]="heading"
-    secondaryText="Creación"
+    [state]="elaborada() ? 'elaborated' : 'new'"
+    [heading]="detalle() ? 'Registro del catálogo' : heading"
+    [secondaryText]="detalle() ? '' : 'Creación'"
     [showReturn]="true"
-    [saveDisabled]="true"
-    [verifyDisabled]="true"
-    (returned)="regresar()"
+    [showTag]="!detalle() && !elaborada()"
+    [customActions]="!!detalle()"
+    [showButtonGroup]="!detalle() && !aceptada()"
+    [saveDisabled]="registros().length === 0"
+    [verifyDisabled]="!elaborada()"
+    (returned)="onReturn()"
     (canceled)="regresar()"
+    (saved)="modalGrabar.set(true)"
+    (verified)="modalVerificar.set(true)"
+    (edited)="volverAEditar()"
+    (deleted)="modalEliminar.set(true)"
   >
-    <siaf-solicitude-info-card [fields]="camposEntidad()" [captureOpenDate]="true" />
+    @if (elaborada() && !detalle()) {
+      <section class="grid gap-siaf-md lg:grid-cols-[1fr_360px]">
+        <siaf-solicitude-info-card [fields]="camposEntidad()" [captureOpenDate]="true" />
+        <siaf-document-summary-card [documentNumber]="numeroDocumento()" [status]="estadoDocumento()" />
+      </section>
+    } @else {
+      <siaf-solicitude-info-card [fields]="camposEntidad()" [captureOpenDate]="true" />
+    }
 
+    @if (detalle(); as d) {
+      <!-- ── Detalle del registro del catálogo (solo lectura) ── -->
+      <siaf-solicitude-form-card title="Detalle de registro del catálogo">
+        <readonly-field caption="Código" [value]="d.codigo" />
+
+        <div class="grid gap-siaf-lg md:grid-cols-2">
+          <div class="flex flex-col gap-siaf-xs">
+            <h4 class="m-0 text-sm font-bold text-[var(--sys-color-text-neutral-high)]">Proceso</h4>
+            <siaf-summary-card [bordered]="true" [showClose]="false" [fields]="[{ label: 'Código proceso', value: d.proceso.codigo }, { label: 'Nombre proceso', value: d.proceso.nombre }]" />
+          </div>
+          <div class="flex flex-col gap-siaf-xs">
+            <h4 class="m-0 text-sm font-bold text-[var(--sys-color-text-neutral-high)]">Rol</h4>
+            <siaf-summary-card [bordered]="true" [showClose]="false" [fields]="[{ label: 'Código rol', value: d.rol.codigo }, { label: 'Nombre rol', value: d.rol.nombre }]" />
+          </div>
+          <div class="flex flex-col gap-siaf-xs">
+            <h4 class="m-0 text-sm font-bold text-[var(--sys-color-text-neutral-high)]">Perfil</h4>
+            <siaf-summary-card [bordered]="true" [showClose]="false" [fields]="[{ label: 'Código perfil', value: d.perfil.codigo }, { label: 'Nombre perfil', value: d.perfil.nombre }]" />
+          </div>
+          <div class="flex flex-col gap-siaf-xs">
+            <h4 class="m-0 text-sm font-bold text-[var(--sys-color-text-neutral-high)]">Tipo de acción</h4>
+            <siaf-summary-card [bordered]="true" [showClose]="false" [fields]="[{ label: 'Código tipo de acción', value: d.tipoAccion.codigo }, { label: 'Nombre tipo de acción', value: d.tipoAccion.nombre }]" />
+          </div>
+        </div>
+
+        <readonly-field caption="Subtipo de acción" [value]="d.subtipo" />
+
+        <div class="flex flex-col gap-siaf-sm">
+          <h3 class="m-0 text-sm font-bold uppercase text-text">Vigencia</h3>
+          <div class="grid gap-siaf-lg md:grid-cols-3">
+            <readonly-field caption="Estado" [value]="d.estado === 'si' ? 'Sí' : 'No'" />
+            <readonly-field caption="Fecha desde" [value]="d.fechaDesde || '--/--/----'" />
+            <readonly-field caption="Fecha hasta" [value]="d.fechaHasta || '--/--/----'" />
+          </div>
+        </div>
+      </siaf-solicitude-form-card>
+    } @else {
     <!-- ── Registro del catálogo: placeholder con (+) Añadir o formulario «Detalles del catálogo» ── -->
     <siaf-solicitude-form-card title="Registro del catálogo">
       <div card-actions class="flex items-center gap-siaf-sm">
-        @if (!mostrandoFormulario()) {
-          <siaf-button variant="accent" size="md" icon="add" [iconOnly]="true" ariaLabel="Añadir" (click)="anadir()" />
-        } @else {
-          <siaf-button variant="outline" size="md" icon="close" (click)="cancelarRegistro()">Cancelar</siaf-button>
-          <siaf-button variant="filled" size="md" [disabled]="!formValido()" (click)="aceptarRegistro()">Aceptar</siaf-button>
+        @if (!elaborada()) {
+          @if (!mostrandoFormulario()) {
+            <siaf-button variant="accent" size="md" icon="add" [iconOnly]="true" ariaLabel="Añadir" (click)="anadir()" />
+          } @else {
+            <siaf-button variant="outline" size="md" icon="close" (click)="cancelarRegistro()">Cancelar</siaf-button>
+            <siaf-button variant="filled" size="md" [disabled]="!formValido()" (click)="aceptarRegistro()">Aceptar</siaf-button>
+          }
         }
       </div>
 
       @if (!mostrandoFormulario()) {
-        <div class="flex min-h-[49px] items-center rounded-siaf-md bg-[var(--sys-color-bg-surfaces-surface-low)] px-siaf-md py-siaf-sm">
-          <p class="m-0 text-sm text-[var(--sys-color-text-neutral-medium)]">Por favor, haga clic en el botón (+) para añadir el registro.</p>
-        </div>
+        @if (registros().length) {
+          <!-- Tabla de registros aceptados -->
+          <div class="flex flex-col gap-siaf-md">
+            <siaf-table-controls
+              selectAllLabel="Seleccionar registros"
+              [page]="1"
+              [pageSize]="25"
+              [totalItems]="registros().length"
+              [totalPages]="1"
+            />
+            <div class="overflow-x-auto">
+              <table class="w-full border-collapse text-left text-sm">
+                <thead>
+                  <tr class="bg-[var(--sys-color-bg-surfaces-surface-high)] text-[var(--sys-color-text-neutral-high)]">
+                    <th rowspan="2" class="w-12 border-b border-[var(--sys-color-divider-default)] px-siaf-sm py-siaf-sm"></th>
+                    <th rowspan="2" class="border-b border-[var(--sys-color-divider-default)] px-siaf-md py-siaf-sm text-xs font-bold uppercase tracking-[0.02px]">Código</th>
+                    <th rowspan="2" class="border-b border-[var(--sys-color-divider-default)] px-siaf-md py-siaf-sm text-xs font-bold uppercase tracking-[0.02px]">Proceso</th>
+                    <th rowspan="2" class="border-b border-[var(--sys-color-divider-default)] px-siaf-md py-siaf-sm text-xs font-bold uppercase tracking-[0.02px]">Rol</th>
+                    <th rowspan="2" class="border-b border-[var(--sys-color-divider-default)] px-siaf-md py-siaf-sm text-xs font-bold uppercase tracking-[0.02px]">Perfil</th>
+                    <th rowspan="2" class="border-b border-[var(--sys-color-divider-default)] px-siaf-md py-siaf-sm text-xs font-bold uppercase tracking-[0.02px]">Tipo de acción</th>
+                    <th rowspan="2" class="border-b border-[var(--sys-color-divider-default)] px-siaf-md py-siaf-sm text-xs font-bold uppercase tracking-[0.02px]">Subtipo de acción</th>
+                    <th colspan="3" class="border-b border-l border-[var(--sys-color-divider-default)] px-siaf-md py-siaf-xs text-center text-xs font-bold uppercase tracking-[0.02px]">Vigencia</th>
+                  </tr>
+                  <tr class="bg-[var(--sys-color-bg-surfaces-surface-high)] text-[var(--sys-color-text-neutral-high)]">
+                    <th class="border-b border-l border-[var(--sys-color-divider-default)] px-siaf-md py-siaf-xs text-xs font-bold uppercase tracking-[0.02px]">Estado</th>
+                    <th class="border-b border-l border-[var(--sys-color-divider-default)] px-siaf-md py-siaf-xs text-xs font-bold uppercase tracking-[0.02px]">Fecha desde</th>
+                    <th class="border-b border-l border-[var(--sys-color-divider-default)] px-siaf-md py-siaf-xs text-xs font-bold uppercase tracking-[0.02px]">Fecha hasta</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (r of registros(); track $index) {
+                    <tr class="cursor-pointer border-b border-[var(--sys-color-divider-default)] transition hover:bg-[var(--sys-color-bg-states-light-hover)]" (click)="verDetalle(r)">
+                      <td class="px-siaf-sm py-siaf-sm align-middle" (click)="$event.stopPropagation()"><siaf-checkbox /></td>
+                      <td class="px-siaf-md py-siaf-sm align-middle text-[var(--sys-color-text-neutral-high)]">{{ r.codigo }}</td>
+                      <td class="px-siaf-md py-siaf-sm align-middle text-[var(--sys-color-text-neutral-high)]">{{ r.proceso.codigo }} {{ r.proceso.nombre }}</td>
+                      <td class="px-siaf-md py-siaf-sm align-middle text-[var(--sys-color-text-neutral-high)]">{{ r.rol.codigo }} {{ r.rol.nombre }}</td>
+                      <td class="px-siaf-md py-siaf-sm align-middle text-[var(--sys-color-text-neutral-high)]">{{ r.perfil.codigo }} {{ r.perfil.nombre }}</td>
+                      <td class="px-siaf-md py-siaf-sm align-middle text-[var(--sys-color-text-neutral-high)]">{{ r.tipoAccion.codigo }} {{ r.tipoAccion.nombre }}</td>
+                      <td class="px-siaf-md py-siaf-sm align-middle text-[var(--sys-color-text-neutral-high)]">{{ r.subtipo }}</td>
+                      <td class="border-l border-[var(--sys-color-divider-default)] px-siaf-md py-siaf-sm align-middle text-[var(--sys-color-text-neutral-high)]">{{ r.estado === 'si' ? 'Sí' : 'No' }}</td>
+                      <td class="border-l border-[var(--sys-color-divider-default)] px-siaf-md py-siaf-sm align-middle text-[var(--sys-color-text-neutral-high)]">{{ r.fechaDesde || '--/--/----' }}</td>
+                      <td class="border-l border-[var(--sys-color-divider-default)] px-siaf-md py-siaf-sm align-middle text-[var(--sys-color-text-neutral-high)]">{{ r.fechaHasta || '--/--/----' }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+            <siaf-pagination
+              navigation="Activate"
+              position="Bottom"
+              [rowPage]="true"
+              [page]="1"
+              [pageSize]="25"
+              [totalItems]="registros().length"
+              [totalPages]="1"
+              [rowsPerPage]="25"
+            />
+          </div>
+        } @else {
+          <div class="flex min-h-[49px] items-center rounded-siaf-md bg-[var(--sys-color-bg-surfaces-surface-low)] px-siaf-md py-siaf-sm">
+            <p class="m-0 text-sm text-[var(--sys-color-text-neutral-medium)]">Por favor, haga clic en el botón (+) para añadir el registro.</p>
+          </div>
+        }
       } @else {
         <h3 class="m-0 text-sm font-bold uppercase text-text">Detalles del catálogo</h3>
 
@@ -52,20 +164,12 @@
               <siaf-button [variant]="procesoSel() ? 'outline' : 'accent'" size="md" icon="search" [iconOnly]="true" [disabled]="!!procesoSel()" ariaLabel="Buscar proceso" (click)="abrirProceso()" />
             </div>
             @if (procesoSel(); as p) {
-              <div class="flex min-h-[60px] items-center gap-siaf-lg rounded-siaf-md border border-[var(--sys-color-border-states-enabled)] bg-surface px-siaf-md py-siaf-sm">
-                <span class="h-6 w-1 shrink-0 rounded-full bg-[var(--sys-color-bg-brand-primary)]" aria-hidden="true"></span>
-                <div class="w-[200px] shrink-0">
-                  <p class="m-0 text-[11px] uppercase tracking-[0.5px] text-[var(--sys-color-text-neutral-low)]">Código proceso</p>
-                  <p class="m-0 text-sm font-bold text-[var(--sys-color-text-neutral-high)]">{{ p.codigo }}</p>
-                </div>
-                <div class="min-w-0 flex-1">
-                  <p class="m-0 text-[11px] uppercase tracking-[0.5px] text-[var(--sys-color-text-neutral-low)]">Nombre proceso</p>
-                  <p class="m-0 text-sm font-bold text-[var(--sys-color-text-neutral-high)]">{{ p.nombre }}</p>
-                </div>
-                <button type="button" class="inline-flex size-8 shrink-0 items-center justify-center rounded-siaf-md text-[var(--sys-color-text-neutral-low)] transition hover:bg-[var(--sys-color-bg-states-light-hover)]" aria-label="Quitar proceso" (click)="limpiarProceso()">
-                  <siaf-icon name="close" [size]="20" />
-                </button>
-              </div>
+              <siaf-summary-card
+                [bordered]="true"
+                closeLabel="Quitar proceso"
+                [fields]="[{ label: 'Código proceso', value: p.codigo }, { label: 'Nombre proceso', value: p.nombre }]"
+                (closed)="limpiarProceso()"
+              />
             } @else {
               <div class="rounded-siaf-md bg-[var(--sys-color-bg-surfaces-surface-low)] px-siaf-md py-siaf-sm">
                 <p class="m-0 text-sm text-[var(--sys-color-text-neutral-medium)]">No se ha seleccionado ninguna opción. Haga clic en el botón para realizar una selección.</p>
@@ -80,20 +184,12 @@
               <siaf-button [variant]="(rolHabilitado() && !rolSel()) ? 'accent' : 'outline'" size="md" icon="search" [iconOnly]="true" [disabled]="!rolHabilitado() || !!rolSel()" ariaLabel="Buscar rol" (click)="abrirRol()" />
             </div>
             @if (rolSel(); as r) {
-              <div class="flex min-h-[60px] items-center gap-siaf-lg rounded-siaf-md border border-[var(--sys-color-border-states-enabled)] bg-surface px-siaf-md py-siaf-sm">
-                <span class="h-6 w-1 shrink-0 rounded-full bg-[var(--sys-color-bg-brand-primary)]" aria-hidden="true"></span>
-                <div class="w-[200px] shrink-0">
-                  <p class="m-0 text-[11px] uppercase tracking-[0.5px] text-[var(--sys-color-text-neutral-low)]">Código rol</p>
-                  <p class="m-0 text-sm font-bold text-[var(--sys-color-text-neutral-high)]">{{ r.codigo }}</p>
-                </div>
-                <div class="min-w-0 flex-1">
-                  <p class="m-0 text-[11px] uppercase tracking-[0.5px] text-[var(--sys-color-text-neutral-low)]">Nombre rol</p>
-                  <p class="m-0 text-sm font-bold text-[var(--sys-color-text-neutral-high)]">{{ r.nombre }}</p>
-                </div>
-                <button type="button" class="inline-flex size-8 shrink-0 items-center justify-center rounded-siaf-md text-[var(--sys-color-text-neutral-low)] transition hover:bg-[var(--sys-color-bg-states-light-hover)]" aria-label="Quitar rol" (click)="limpiarRol()">
-                  <siaf-icon name="close" [size]="20" />
-                </button>
-              </div>
+              <siaf-summary-card
+                [bordered]="true"
+                closeLabel="Quitar rol"
+                [fields]="[{ label: 'Código rol', value: r.codigo }, { label: 'Nombre rol', value: r.nombre }]"
+                (closed)="limpiarRol()"
+              />
             } @else {
               <div class="rounded-siaf-md bg-[var(--sys-color-bg-surfaces-surface-low)] px-siaf-md py-siaf-sm">
                 <p class="m-0 text-sm text-[var(--sys-color-text-neutral-medium)]">No se ha seleccionado ninguna opción. Haga clic en el botón para realizar una selección.</p>
@@ -108,20 +204,12 @@
               <siaf-button [variant]="(perfilHabilitado() && !perfilSel()) ? 'accent' : 'outline'" size="md" icon="search" [iconOnly]="true" [disabled]="!perfilHabilitado() || !!perfilSel()" ariaLabel="Buscar perfil" (click)="abrirPerfil()" />
             </div>
             @if (perfilSel(); as pf) {
-              <div class="flex min-h-[60px] items-center gap-siaf-lg rounded-siaf-md border border-[var(--sys-color-border-states-enabled)] bg-surface px-siaf-md py-siaf-sm">
-                <span class="h-6 w-1 shrink-0 rounded-full bg-[var(--sys-color-bg-brand-primary)]" aria-hidden="true"></span>
-                <div class="w-[200px] shrink-0">
-                  <p class="m-0 text-[11px] uppercase tracking-[0.5px] text-[var(--sys-color-text-neutral-low)]">Código perfil</p>
-                  <p class="m-0 text-sm font-bold text-[var(--sys-color-text-neutral-high)]">{{ pf.codigo }}</p>
-                </div>
-                <div class="min-w-0 flex-1">
-                  <p class="m-0 text-[11px] uppercase tracking-[0.5px] text-[var(--sys-color-text-neutral-low)]">Nombre perfil</p>
-                  <p class="m-0 text-sm font-bold text-[var(--sys-color-text-neutral-high)]">{{ pf.nombre }}</p>
-                </div>
-                <button type="button" class="inline-flex size-8 shrink-0 items-center justify-center rounded-siaf-md text-[var(--sys-color-text-neutral-low)] transition hover:bg-[var(--sys-color-bg-states-light-hover)]" aria-label="Quitar perfil" (click)="limpiarPerfil()">
-                  <siaf-icon name="close" [size]="20" />
-                </button>
-              </div>
+              <siaf-summary-card
+                [bordered]="true"
+                closeLabel="Quitar perfil"
+                [fields]="[{ label: 'Código perfil', value: pf.codigo }, { label: 'Nombre perfil', value: pf.nombre }]"
+                (closed)="limpiarPerfil()"
+              />
             } @else {
               <div class="rounded-siaf-md bg-[var(--sys-color-bg-surfaces-surface-low)] px-siaf-md py-siaf-sm">
                 <p class="m-0 text-sm text-[var(--sys-color-text-neutral-medium)]">No se ha seleccionado ninguna opción. Haga clic en el botón para realizar una selección.</p>
@@ -136,20 +224,12 @@
               <siaf-button [variant]="(tipoHabilitado() && !tipoSel()) ? 'accent' : 'outline'" size="md" icon="search" [iconOnly]="true" [disabled]="!tipoHabilitado() || !!tipoSel()" ariaLabel="Buscar tipo de acción" (click)="abrirTipo()" />
             </div>
             @if (tipoSel(); as t) {
-              <div class="flex min-h-[60px] items-center gap-siaf-lg rounded-siaf-md border border-[var(--sys-color-border-states-enabled)] bg-surface px-siaf-md py-siaf-sm">
-                <span class="h-6 w-1 shrink-0 rounded-full bg-[var(--sys-color-bg-brand-primary)]" aria-hidden="true"></span>
-                <div class="w-[200px] shrink-0">
-                  <p class="m-0 text-[11px] uppercase tracking-[0.5px] text-[var(--sys-color-text-neutral-low)]">Código tipo de acción</p>
-                  <p class="m-0 text-sm font-bold text-[var(--sys-color-text-neutral-high)]">{{ t.codigo }}</p>
-                </div>
-                <div class="min-w-0 flex-1">
-                  <p class="m-0 text-[11px] uppercase tracking-[0.5px] text-[var(--sys-color-text-neutral-low)]">Nombre tipo de acción</p>
-                  <p class="m-0 text-sm font-bold text-[var(--sys-color-text-neutral-high)]">{{ t.nombre }}</p>
-                </div>
-                <button type="button" class="inline-flex size-8 shrink-0 items-center justify-center rounded-siaf-md text-[var(--sys-color-text-neutral-low)] transition hover:bg-[var(--sys-color-bg-states-light-hover)]" aria-label="Quitar tipo de acción" (click)="limpiarTipo()">
-                  <siaf-icon name="close" [size]="20" />
-                </button>
-              </div>
+              <siaf-summary-card
+                [bordered]="true"
+                closeLabel="Quitar tipo de acción"
+                [fields]="[{ label: 'Código tipo de acción', value: t.codigo }, { label: 'Nombre tipo de acción', value: t.nombre }]"
+                (closed)="limpiarTipo()"
+              />
             } @else {
               <div class="rounded-siaf-md bg-[var(--sys-color-bg-surfaces-surface-low)] px-siaf-md py-siaf-sm">
                 <p class="m-0 text-sm text-[var(--sys-color-text-neutral-medium)]">No se ha seleccionado ninguna opción. Haga clic en el botón para realizar una selección.</p>
@@ -203,6 +283,11 @@
         </div>
       }
     </siaf-solicitude-form-card>
+
+    @if (elaborada()) {
+      <siaf-action-tracker [showSummaryCards]="true" [showTabs]="false" [summaryItems]="trazabilidad()" />
+    }
+    }
   </siaf-solicitude-page-layout>
 
   <!-- ── Overlays de selección (Proceso → Rol → Perfil → Tipo de acción) ── -->
@@ -265,5 +350,39 @@
     (selectionChange)="idsTipo.set($event)"
     (accepted)="aceptarTipo($event)"
     (closed)="tipoAbierto.set(false)"
+  />
+
+  <!-- Aviso de registro agregado: flotante, centrado abajo (se cierra solo a ~2 s o con la X). -->
+  @if (snackbarAbierto()) {
+    <div class="fixed bottom-6 left-1/2 z-50 -translate-x-1/2">
+      <siaf-snackbar
+        [open]="true"
+        tone="success"
+        variant="custom"
+        message="El registro se ha realizado con éxito"
+        [dismissible]="true"
+        (closed)="cerrarSnackbar()"
+      />
+    </div>
+  }
+
+  <!-- Modales de confirmación (Grabar / Verificar / Eliminar) + snackbar del ciclo del documento. -->
+  <siaf-request-approval-modals
+    [saveOpen]="modalGrabar()"
+    [verifyOpen]="modalVerificar()"
+    verifyDescription="La solicitud será verificada y aceptada automáticamente."
+    [deleteOpen]="modalEliminar()"
+    [snackbarVariant]="aviso()"
+    [snackbarMessage]="avisoMensaje()"
+    [snackbarOpen]="avisoAbierto()"
+    requestType="creación"
+    [requestNumber]="numeroDocumento()"
+    (saveConfirmed)="onConfirmarGrabar()"
+    (saveClosed)="modalGrabar.set(false)"
+    (verifyConfirmed)="onConfirmarVerificar()"
+    (verifyClosed)="modalVerificar.set(false)"
+    (deleteConfirmed)="modalEliminar.set(false)"
+    (deleteClosed)="modalEliminar.set(false)"
+    (snackbarClosed)="avisoAbierto.set(false)"
   />
 </div>

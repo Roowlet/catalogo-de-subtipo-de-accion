@@ -10172,6 +10172,13 @@ export const MANIFIESTO_UI_KIT: readonly FichaComponente[] = [
         "descripcion": null
       },
       {
+        "nombre": "verifyDescription",
+        "tipo": "string",
+        "porDefecto": "''",
+        "requerida": false,
+        "descripcion": "Descripción del modal de verificar; vacía usa el texto del preset («La solicitud será verificada.»)."
+      },
+      {
         "nombre": "verifyOpen",
         "tipo": "boolean",
         "porDefecto": "false",
