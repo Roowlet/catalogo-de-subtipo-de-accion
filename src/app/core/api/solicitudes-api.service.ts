@@ -5,7 +5,6 @@ import { Observable } from 'rxjs';
 import { APP_CONFIG } from '../config/app.config';
 import { EstadoDocumento } from '../models/documento.model';
 import type { CuentaBancariaDatos } from '../../modules/tesoreria/cuentas-bancarias/models/cuenta-bancaria.model';
-import type { ModificacionApmDatos } from '../../modules/presupuesto/modificacion-apm/models/modificacion-apm.model';
 
 // ─────────────────────────────────────────────────────────────
 // DTOs de creación — mantienen los nombres viejos por compat
@@ -313,8 +312,6 @@ export interface SolicitudResponse {
   detalleAsientoAjuste?: AsientoAjusteResponse | null; // SRAA
   /** Taller: cuenta bancaria propuesta en la solicitud SRCB (proceso de ejemplo). */
   detalleCuentaBancaria?: (CuentaBancariaDatos & { documentoId: string }) | null; // SRCB
-  /** Taller: modificación de la APM propuesta en la solicitud SMAPM. */
-  detalleModificacionApm?: (ModificacionApmDatos & { documentoId: string }) | null; // SMAPM
   detalleConfiguracionMensual?: {
     documentoId: string;
     periodoContableId: string;

@@ -4,7 +4,6 @@ import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
 import { filter } from 'rxjs';
 
 import { CREATE_DOCUMENT_OPTIONS, REQUEST_ROUTE } from '../../modules/tesoreria/cuentas-bancarias/config/cuentas-bancarias.rutas';
-import { CREATE_DOCUMENT_OPTIONS as CREATE_DOCUMENT_OPTIONS_APM, REQUEST_ROUTE as REQUEST_ROUTE_APM } from '../../modules/presupuesto/modificacion-apm/config/modificacion-apm.rutas';
 import { CreateDocumentAccepted, CreateDocumentComponent, CreateDocumentProcessOption } from '../../shared/components/create-document/create-document.component';
 import { CatalogosApiService, TipoDocumentoResponse } from '../../core/api/catalogos-api.service';
 import { MobileNavigationMenuComponent } from '../mobile-navigation-menu/mobile-navigation-menu.component';
@@ -151,7 +150,7 @@ export class AppShellComponent implements OnInit {
   adminMenuOpen = false;
 
   // Fallback en caso de que el API tarde o falle — la maqueta sigue funcional
-  private readonly fallbackOptions: CreateDocumentProcessOption[] = [...CREATE_DOCUMENT_OPTIONS, ...CREATE_DOCUMENT_OPTIONS_APM];
+  private readonly fallbackOptions: CreateDocumentProcessOption[] = [...CREATE_DOCUMENT_OPTIONS];
 
   readonly createDocumentOptions = signal<CreateDocumentProcessOption[]>(this.fallbackOptions);
 
@@ -183,10 +182,6 @@ export class AppShellComponent implements OnInit {
       'registro-cuentas-bancarias': {
         processRoute: REQUEST_ROUTE,
         tipoRoutes: { SRCB: REQUEST_ROUTE },
-      },
-      'modificacion-apm': {
-        processRoute: REQUEST_ROUTE_APM,
-        tipoRoutes: { SMAPM: REQUEST_ROUTE_APM },
       },
     };
 

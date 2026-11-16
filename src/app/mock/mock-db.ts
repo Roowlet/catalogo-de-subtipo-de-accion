@@ -8,12 +8,6 @@ import {
   NOMBRE_DOCUMENTO,
 } from '../modules/tesoreria/cuentas-bancarias/models/cuenta-bancaria.model';
 import {
-  CODIGO_DOCUMENTO as CODIGO_DOCUMENTO_APM,
-  GASTOS_APM,
-  ModificacionApmDatos,
-  NOMBRE_DOCUMENTO as NOMBRE_DOCUMENTO_APM,
-} from '../modules/presupuesto/modificacion-apm/models/modificacion-apm.model';
-import {
   CODIGO_DOCUMENTO as CODIGO_DOCUMENTO_STA,
   NOMBRE_DOCUMENTO as NOMBRE_DOCUMENTO_STA,
 } from '../modules/presupuesto/catalogo-subtipo-accion/models/catalogo-subtipo-accion.model';
@@ -25,7 +19,7 @@ import { USUARIOS_DEMO, UsuarioDemo } from './usuarios-demo';
  */
 
 const CLAVE = 'catalogo-subtipo-accion:datos';
-const VERSION = 4;
+const VERSION = 5;
 
 export interface NotificacionMock extends NotificacionResponse {
   /** Destinatario: un usuario puntual o, si no hay, todos los perfiles con este rol. */
@@ -39,8 +33,6 @@ export interface DatosTaller {
   registros: CuentaBancariaRegistro[];
   notificaciones: NotificacionMock[];
   correlativoDocumento: number;
-  /** Correlativo propio de los documentos SMAPM, independiente del de SRCB. */
-  correlativoDocumentoApm: number;
   /** Correlativo propio de los documentos SSTA (Catálogo de subtipo de acción). */
   correlativoDocumentoSta: number;
   correlativoRegistro: number;
@@ -48,7 +40,6 @@ export interface DatosTaller {
 }
 
 export const TIPO_DOCUMENTO = { id: 'td-srcb', codigo: CODIGO_DOCUMENTO, nombre: NOMBRE_DOCUMENTO };
-export const TIPO_DOCUMENTO_APM = { id: 'td-smapm', codigo: CODIGO_DOCUMENTO_APM, nombre: NOMBRE_DOCUMENTO_APM };
 export const TIPO_DOCUMENTO_STA = { id: 'td-ssta', codigo: CODIGO_DOCUMENTO_STA, nombre: NOMBRE_DOCUMENTO_STA };
 export const ENTIDAD_CREADORA = { id: 'ent-mef', codMef: '0001', siglas: 'MEF', nombre: 'Ministerio de Economía y Finanzas' };
 export const UNIDAD_CREADORA = { id: 'uo-oga', sigla: 'OGA', nombre: 'Oficina General de Administración' };
@@ -88,11 +79,6 @@ export function nuevoId(datos: DatosTaller, prefijo: string): string {
 
 export function numeroDocumento(correlativo: number, fecha: Date, prefijo = 'PCB-SRCB'): string {
   return `${prefijo}-${String(correlativo).padStart(5, '0')}-${fecha.getFullYear()}-MEF-OGA`;
-}
-
-/** Prefijo del número formal según el código del tipo de documento. */
-export function prefijoDocumento(codigo: string): string {
-  return codigo === CODIGO_DOCUMENTO_APM ? 'PMA-SMAPM' : 'PCB-SRCB';
 }
 
 /** Tipo de documento (con id garantizado) para el campo `documento.catDocumento` de una notificación. */
@@ -163,24 +149,6 @@ const SEMILLAS: Semilla[] = [
   { creada: '2026-09-09', estado: 'ELABORADO', justificacion: 'Cuenta de ahorros para el fondo de viáticos.', datos: cuenta('018', 'AHORROS', 'PEN', 12, 'Fondo de viáticos', '2026-09-08', false) },
 ];
 
-interface SemillaApm {
-  creada: string;
-  estado: 'ELABORADO' | 'VERIFICADO' | 'APROBADO' | 'OBSERVADO' | 'RECHAZADO';
-  detalle: string;
-  comentario?: string;
-}
-
-const SEMILLAS_APM: SemillaApm[] = [
-  { creada: '2026-08-19', estado: 'APROBADO', detalle: 'Modificación de la APM por incremento de la genérica Bienes y servicios para el ejercicio.' },
-  { creada: '2026-09-01', estado: 'VERIFICADO', detalle: 'Modificación de la APM por reasignación entre genéricas de gasto corriente.' },
-  { creada: '2026-09-08', estado: 'OBSERVADO', detalle: 'Modificación de la APM por ajuste en Otros gastos.', comentario: 'Adjunte el sustento del ajuste en la genérica Otros gastos.' },
-  { creada: '2026-09-12', estado: 'ELABORADO', detalle: 'Modificación de la APM por actualización de Donaciones y transferencias.' },
-];
-
-function modificacionApm(detalle: string): ModificacionApmDatos {
-  return { gastos: GASTOS_APM.map((g) => ({ ...g })), detalle };
-}
-
 interface SemillaSta {
   creada: string;
   estado: 'ELABORADO' | 'VERIFICADO' | 'APROBADO' | 'OBSERVADO' | 'RECHAZADO';
@@ -212,7 +180,6 @@ function crearDatosIniciales(): DatosTaller {
     registros: [],
     notificaciones: [],
     correlativoDocumento: 0,
-    correlativoDocumentoApm: 0,
     correlativoDocumentoSta: 0,
     correlativoRegistro: 0,
     secuencia: 0,
@@ -276,50 +243,6 @@ function crearDatosIniciales(): DatosTaller {
         ...semilla.datos,
       });
     }
-  }
-
-  // ── Solicitudes de Modificación de la APM (SMAPM) ──
-  for (const semilla of SEMILLAS_APM) {
-    const id = nuevoId(datos, 'sol');
-    datos.correlativoDocumentoApm += 1;
-    const creada = enFecha(semilla.creada, 9);
-    const numero = numeroDocumento(datos.correlativoDocumentoApm, new Date(creada), prefijoDocumento(CODIGO_DOCUMENTO_APM));
-    const historial: HistorialItem[] = [
-      filaHistorial(datos, null, 'NUEVO', creada, ana, ROL_CREADOR),
-      filaHistorial(datos, 'NUEVO', 'ELABORADO', enFecha(semilla.creada, 9, 0), ana, ROL_CREADOR),
-    ];
-    if (semilla.estado !== 'ELABORADO') {
-      historial.push(filaHistorial(datos, 'ELABORADO', 'VERIFICADO', enFecha(semilla.creada, 10, 1), ana, ROL_CREADOR));
-    }
-    if (['APROBADO', 'OBSERVADO', 'RECHAZADO'].includes(semilla.estado)) {
-      historial.push(filaHistorial(datos, 'VERIFICADO', semilla.estado, enFecha(semilla.creada, 11, 2), luis, ROL_APROBADOR, semilla.comentario ?? null));
-    }
-    const ultima = historial[historial.length - 1].createdAt;
-
-    datos.solicitudes.push({
-      id,
-      numero,
-      catDocumento: TIPO_DOCUMENTO_APM,
-      tipoAccion: 'modificacion',
-      estado: semilla.estado,
-      asuntoMotivo: `[DIRECCIÓN GENERAL DE PRESUPUESTO PÚBLICO] ${semilla.detalle}`,
-      entidadCreadora: ENTIDAD_CREADORA,
-      unidadCreadora: UNIDAD_CREADORA,
-      creador: { id: ana.id, nombres: ana.nombres, apellidoPaterno: ana.apellidoPaterno, apellidoMaterno: ana.apellidoMaterno },
-      fechaRegistro: creada,
-      createdAt: creada,
-      updatedAt: ultima,
-      itemsCuenta: [],
-      detalleModificacionApm: { documentoId: id, ...modificacionApm(semilla.detalle) },
-      sustentos: [
-        {
-          id: nuevoId(datos, 'sus'),
-          tipoSustento: 'sustento',
-          archivo: { nombreOriginal: `Sustento de modificación APM ${String(datos.correlativoDocumentoApm).padStart(2, '0')}.pdf`, storagePath: 'taller' },
-        },
-      ],
-      historialEstados: historial,
-    });
   }
 
   // ── Solicitudes del Catálogo de subtipo de acción (SSTA) ──

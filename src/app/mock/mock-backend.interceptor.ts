@@ -7,13 +7,11 @@ import type { SolicitudResponse } from '../core/api/solicitudes-api.service';
 import { APP_CONFIG } from '../core/config/app.config';
 import type { EstadoDocumento } from '../core/models/documento.model';
 import type { CuentaBancariaDatos } from '../modules/tesoreria/cuentas-bancarias/models/cuenta-bancaria.model';
-import type { ModificacionApmDatos } from '../modules/presupuesto/modificacion-apm/models/modificacion-apm.model';
 import {
   DatosTaller,
   ENTIDAD_CREADORA,
   NotificacionMock,
   TIPO_DOCUMENTO,
-  TIPO_DOCUMENTO_APM,
   UNIDAD_CREADORA,
   catDocumentoNotificacion,
   filaHistorial,
@@ -21,7 +19,6 @@ import {
   leerDatos,
   nuevoId,
   numeroDocumento,
-  prefijoDocumento,
 } from './mock-db';
 import { CONTRASENA_DEMO, USUARIOS_DEMO, UsuarioDemo, buscarUsuarioPorPerfil } from './usuarios-demo';
 
@@ -144,13 +141,6 @@ const tiposDocumento: Manejador = () => ok([
     accionesPermitidas: [{ tipoAccion: 'creacion' }],
     proceso: { codigo: 'registro-cuentas-bancarias', nombre: 'Registro de cuentas bancarias', modulo: 'tesoreria' },
   },
-  {
-    ...TIPO_DOCUMENTO_APM,
-    modulo: 'presupuesto',
-    esActivo: true,
-    accionesPermitidas: [{ tipoAccion: 'modificacion' }],
-    proceso: { codigo: 'modificacion-apm', nombre: 'Modificación de la APM', modulo: 'presupuesto' },
-  },
 ]);
 
 // ─── Notificaciones ────────────────────────────────────────────────
@@ -248,7 +238,7 @@ const crearSolicitud: Manejador = ({ req, datos, sesion }) => {
   if (!sesion) return error(401, 'Sesión expirada.');
   if (sesion.perfil.rolCodigo !== 'CREADOR') return error(403, 'Solo un creador puede registrar solicitudes.');
   const dto = (req.body ?? {}) as { tipoDocumentoId?: string; tipoAccion?: string; organoLinea?: string; justificacion?: string };
-  const catDocumento = dto.tipoDocumentoId === TIPO_DOCUMENTO_APM.id ? TIPO_DOCUMENTO_APM : TIPO_DOCUMENTO;
+  const catDocumento = TIPO_DOCUMENTO;
   const ahora = new Date().toISOString();
   const id = nuevoId(datos, 'sol');
   const s: SolicitudResponse = {
@@ -266,7 +256,6 @@ const crearSolicitud: Manejador = ({ req, datos, sesion }) => {
     updatedAt: ahora,
     itemsCuenta: [],
     detalleCuentaBancaria: null,
-    detalleModificacionApm: null,
     sustentos: [],
     historialEstados: [filaHistorial(datos, null, 'NUEVO', ahora, sesion.usuario, rolDe(sesion.perfil))],
   };
@@ -297,18 +286,6 @@ const guardarCuentaBancaria: Manejador = ({ req, datos, params }) => {
   s.updatedAt = new Date().toISOString();
   guardarDatos(datos);
   return ok({ message: 'Cuenta guardada' });
-};
-
-const guardarModificacionApm: Manejador = ({ req, datos, params }) => {
-  const s = buscarSolicitud(datos, params[0]);
-  if (!s) return error(404, 'La solicitud no existe.');
-  if (!['NUEVO', 'ELABORADO', 'OBSERVADO'].includes(s.estado)) return error(409, 'La solicitud ya no admite cambios.');
-  const modificacion = req.body as ModificacionApmDatos;
-  if (!modificacion?.detalle?.trim()) return error(400, 'Ingrese el detalle de la modificación.');
-  s.detalleModificacionApm = { documentoId: s.id, gastos: modificacion.gastos ?? [], detalle: modificacion.detalle.trim() };
-  s.updatedAt = new Date().toISOString();
-  guardarDatos(datos);
-  return ok({ message: 'Modificación guardada' });
 };
 
 const subirSustento: Manejador = ({ req, datos, params }) => {
@@ -375,23 +352,15 @@ const cambiarEstado: Manejador = ({ req, datos, params, sesion }) => {
     return error(409, 'No se puede eliminar una solicitud que fue observada.');
   }
   if (nuevo === 'ELABORADO') {
-    const esApm = s.catDocumento?.codigo === TIPO_DOCUMENTO_APM.codigo;
-    if (esApm && !s.detalleModificacionApm) return error(400, 'Registre el detalle de la modificación de la APM.');
-    if (!esApm && !s.detalleCuentaBancaria) return error(400, 'Registre los datos de la cuenta bancaria.');
+    if (!s.detalleCuentaBancaria) return error(400, 'Registre los datos de la cuenta bancaria.');
     if (!(s.sustentos ?? []).length) return error(400, 'Adjunte el documento de sustento.');
   }
 
   const ahora = new Date().toISOString();
   const anterior = s.estado;
   if (nuevo === 'ELABORADO' && !s.numero) {
-    const codigo = s.catDocumento?.codigo ?? '';
-    if (codigo === TIPO_DOCUMENTO_APM.codigo) {
-      datos.correlativoDocumentoApm += 1;
-      s.numero = numeroDocumento(datos.correlativoDocumentoApm, new Date(), prefijoDocumento(codigo));
-    } else {
-      datos.correlativoDocumento += 1;
-      s.numero = numeroDocumento(datos.correlativoDocumento, new Date(), prefijoDocumento(codigo));
-    }
+    datos.correlativoDocumento += 1;
+    s.numero = numeroDocumento(datos.correlativoDocumento, new Date());
   }
   // Volver a grabar un ELABORADO no deja fila en el historial.
   if (!(anterior === 'ELABORADO' && nuevo === 'ELABORADO')) {
@@ -451,7 +420,6 @@ const RUTAS: [string, RegExp, Manejador][] = [
   ['POST', /^\/solicitudes$/, crearSolicitud],
   ['PATCH', /^\/solicitudes\/([^/]+)\/estado$/, cambiarEstado],
   ['POST', /^\/solicitudes\/([^/]+)\/cuenta-bancaria$/, guardarCuentaBancaria],
-  ['POST', /^\/solicitudes\/([^/]+)\/modificacion-apm$/, guardarModificacionApm],
   ['POST', /^\/solicitudes\/([^/]+)\/sustentos$/, subirSustento],
   ['GET', /^\/solicitudes\/([^/]+)\/sustentos$/, listarSustentos],
   ['DELETE', /^\/solicitudes\/([^/]+)\/sustentos\/([^/]+)$/, eliminarSustento],

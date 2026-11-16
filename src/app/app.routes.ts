@@ -46,7 +46,7 @@ export const routes: Routes = [
           import('./modules/tesoreria/tesoreria.routes').then((m) => m.TESORERIA_ROUTES),
         data: { permissions: ['document.read'] }
       },
-      // ── Proceso: Modificación de la APM (presupuesto) ──
+      // ── Procesos de presupuesto: Catálogo de subtipo de acción ──
       {
         path: '',
         loadChildren: () =>

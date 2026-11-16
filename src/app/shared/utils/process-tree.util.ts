@@ -117,33 +117,6 @@ export const DEFAULT_PROCESS_TREE: ProcessMenuNode[] = [
         id: 'catalogos',
         label: 'Catálogos',
         children: [
-          // Sección APM del arquetipo: oculta del menú (el diseño de este proceso no la muestra), pero
-          // conservada para que las migas de pan de «Modificación de la APM» y «Catálogo de Versiones» sigan
-          // resolviendo vía findProcessPathById.
-          {
-            id: 'gestion-asignacion-presupuestaria-multianual',
-            label: 'Gestión de Asignación Presupuestaria Multianual',
-            hiddenInMenu: true,
-            children: [
-              { id: 'catalogo-reportes-apm', label: 'Catálogo de reportes de la APM', comingSoon: true },
-              { id: 'catalogo-archivos-apm', label: 'Catálogo de archivos de la APM', comingSoon: true },
-              { id: 'catalogo-versiones', label: 'Catálogo de Versiones', comingSoon: true },
-              {
-                id: 'modificacion-apm',
-                label: 'Modificación de la APM',
-                createRoute: '/procesos/modificacion-apm/solicitud',
-                documentOptions: ['Solicitud de Modificación de la APM'],
-                documentCreateOptions: [
-                  {
-                    label: 'Solicitud de Modificación de la APM',
-                    route: '/procesos/modificacion-apm/solicitud',
-                    actionTypes: ['Modificación'],
-                  },
-                ],
-                actionTypeOptions: ['Modificación'],
-              },
-            ],
-          },
           // Catálogos del diseño (Figma nodes 24938-26018 / 26102): lista plana; cada catálogo es un nodo
           // expandible con sus hojas «Documentos y registros» y «Consultas y reportes». Solo «Catálogo de
           // subtipo de acción» está implementado; el resto queda como «Próximamente».

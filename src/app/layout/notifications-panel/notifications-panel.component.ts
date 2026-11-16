@@ -185,10 +185,9 @@ export class NotificationsPanelComponent {
    * Prefiere el código (estable) sobre el nombre.
    */
   private resolveRoute(codigo: string, _nombre: string): string {
-    // Taller: documentos SRCB (cuentas bancarias) y SMAPM (modificación de la APM).
+    // Taller: documentos SRCB (cuentas bancarias).
     const rutas: Record<string, string> = {
       SRCB: '/procesos/registro-cuentas-bancarias/solicitud',
-      SMAPM: '/procesos/modificacion-apm/solicitud',
     };
     return rutas[codigo] ?? '/procesos/registro-cuentas-bancarias/solicitud';
   }

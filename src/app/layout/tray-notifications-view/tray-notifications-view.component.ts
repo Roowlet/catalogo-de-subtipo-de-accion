@@ -308,7 +308,6 @@ export class TrayNotificationsViewComponent implements OnInit {
     const codigo = (notif.documento?.catDocumento?.codigo ?? notif.solicitud?.tipoDocumento?.codigo ?? '').toUpperCase();
     const rutas: Record<string, string> = {
       SRCB: '/procesos/registro-cuentas-bancarias/solicitud',
-      SMAPM: '/procesos/modificacion-apm/solicitud',
     };
     return rutas[codigo] ?? '/procesos/registro-cuentas-bancarias/solicitud';
   }
