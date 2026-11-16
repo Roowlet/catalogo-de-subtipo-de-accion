@@ -27,14 +27,17 @@ const documentColumns: DocumentsRecordsColumn[] = [
   { key: 'subject', label: 'Asunto/Motivo', visibility: 'hidden', group: 'more', widthClass: 'w-[280px]' },
 ];
 
+// Columnas del diseño (Figma node 22921-48063): Código / Proceso / Rol / Perfil / Tipo de acción / Subtipo y el
+// grupo Vigencia (Estado / Fecha desde / Fecha hasta). El ícono de historial va en la columna fija de la derecha,
+// que pinta la propia `siaf-documents-records-table`.
 const recordColumns: DocumentsRecordsColumn[] = [
-  { key: 'status', label: 'Estado', visibility: 'visible', group: 'default', widthClass: 'w-[120px]', kind: 'record-status' },
   { key: 'codigo', label: 'Código', visibility: 'visible', group: 'default', widthClass: 'w-[110px]' },
-  { key: 'proceso', label: 'Proceso', visibility: 'visible', group: 'default', widthClass: 'w-[200px]' },
+  { key: 'proceso', label: 'Proceso', visibility: 'visible', group: 'default', widthClass: 'min-w-[220px]' },
   { key: 'rol', label: 'Rol', visibility: 'visible', group: 'default', widthClass: 'w-[160px]' },
   { key: 'perfil', label: 'Perfil', visibility: 'visible', group: 'default', widthClass: 'w-[160px]' },
   { key: 'tipoAccion', label: 'Tipo de acción', visibility: 'visible', group: 'default', widthClass: 'w-[160px]' },
   { key: 'subtipoAccion', label: 'Subtipo de acción', visibility: 'visible', group: 'default', widthClass: 'min-w-[220px]' },
+  { key: 'estado', label: 'Estado', visibility: 'visible', group: 'default', widthClass: 'w-[110px]' },
   { key: 'fechaDesde', label: 'Fecha desde', visibility: 'visible', group: 'default', widthClass: 'w-[140px]' },
   { key: 'fechaHasta', label: 'Fecha hasta', visibility: 'visible', group: 'default', widthClass: 'w-[140px]' },
 ];
@@ -84,15 +87,15 @@ export const CATALOGO_SUBTIPO_ACCION_DOCUMENTS_CONFIG: DocumentsRecordsConfig = 
   filterCampoOptions,
   filterValorOptions,
   fieldsMenuOptions,
-  recordFilter1Label: 'Estado',
-  recordFilter1Key: 'status',
-  recordFilter1Options: ['Activo', 'Inactivo'],
+  recordFilter1Label: 'Estado del registro',
+  recordFilter1Key: 'estado',
+  recordFilter1Options: ['Sí', 'No'],
   recordFilterCampoOptions: [
-    { label: 'Estado', value: 'status' },
+    { label: 'Estado', value: 'estado' },
     { label: 'Tipo de acción', value: 'tipoAccion' },
   ],
   recordFilterValorOptions: [
-    { label: 'Activo', value: 'Activo' },
-    { label: 'Inactivo', value: 'Inactivo' },
+    { label: 'Sí', value: 'Sí' },
+    { label: 'No', value: 'No' },
   ],
 };

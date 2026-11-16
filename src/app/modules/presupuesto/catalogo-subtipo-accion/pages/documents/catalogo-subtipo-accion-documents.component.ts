@@ -10,6 +10,7 @@ import { createNewDocumentIdsSignal } from '../../../../../shared/utils/new-docu
 import { CATALOGO_SUBTIPO_ACCION_DOCUMENTS_CONFIG } from '../../config/catalogo-subtipo-accion-documents.config';
 import { REQUEST_ROUTE } from '../../config/catalogo-subtipo-accion.rutas';
 import { CODIGO_DOCUMENTO } from '../../models/catalogo-subtipo-accion.model';
+import { RegistrosCatalogoStore } from '../../models/registros-catalogo.store';
 
 /**
  * «Documentos y registros» del proceso «Catálogo de subtipo de acción» (Figma node 20016-187919). La pantalla
@@ -34,6 +35,7 @@ export class CatalogoSubtipoAccionDocumentsComponent implements OnInit {
   private readonly solicitudesFacade = inject(SolicitudesFacadeService);
   private readonly permissions = inject(PermissionService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly registrosStore = inject(RegistrosCatalogoStore);
   private readonly nuevos = createNewDocumentIdsSignal();
 
   readonly cargando = signal(true);
@@ -80,10 +82,24 @@ export class CatalogoSubtipoAccionDocumentsComponent implements OnInit {
       };
     });
 
+    // Pestaña «Registros»: data de prueba + los registros aceptados en «Creación» (store en memoria del taller).
+    const recordRows: DocumentsRecordsRow[] = this.registrosStore.registros().map((r) => ({
+      recordId: r.codigo,
+      codigo: r.codigo,
+      proceso: `${r.proceso.codigo} ${r.proceso.nombre}`,
+      rol: `${r.rol.codigo} ${r.rol.nombre}`,
+      perfil: `${r.perfil.codigo} ${r.perfil.nombre}`,
+      tipoAccion: `${r.tipoAccion.codigo} ${r.tipoAccion.nombre}`,
+      subtipoAccion: r.subtipo,
+      estado: r.estado === 'si' ? 'Sí' : 'No',
+      fechaDesde: r.fechaDesde || '—',
+      fechaHasta: r.fechaHasta || '—',
+    }));
+
     return {
       ...CATALOGO_SUBTIPO_ACCION_DOCUMENTS_CONFIG,
       documentRows,
-      recordRows: [],
+      recordRows,
       serverQuery: { total: this.solicitudesState.bandejaTotal() },
     };
   });

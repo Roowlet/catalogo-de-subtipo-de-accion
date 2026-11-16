@@ -1,5 +1,6 @@
+import { NgClass } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 
 import { CurrentUserService } from '../../../../../core/auth/current-user.service';
 import { ActionTrackerComponent, ActionTrackerSummary } from '../../../../../shared/ui/action-tracker/action-tracker.component';
@@ -18,6 +19,7 @@ import { SolicitudeInfoCardComponent, SolicitudeInfoField } from '../../../../..
 import { SolicitudePageLayoutComponent } from '../../../../../shared/components/solicitude-page-layout/solicitude-page-layout.component';
 import { ButtonComponent } from '../../../../../shared/ui/button/button.component';
 import { CheckboxComponent } from '../../../../../shared/ui/checkbox/checkbox.component';
+import { IconComponent } from '../../../../../shared/ui/icon/icon.component';
 import { ReadonlyFieldComponent } from '../../../../../shared/ui/readonly-field/readonly-field.component';
 import { SummaryCardComponent } from '../../../../../shared/ui/summary-card/summary-card.component';
 import { SnackbarComponent } from '../../../../../shared/ui/snackbar/snackbar.component';
@@ -32,20 +34,23 @@ import {
   PROCESOS,
   ROLES,
   RegistroCatalogo,
+  RegistroGuardado,
   TIPOS_ACCION,
   registroVacio,
 } from '../../models/catalogo-subtipo-accion.model';
+import { RegistrosCatalogoStore } from '../../models/registros-catalogo.store';
 import { CATALOGO_PROCESS_ID, PROCESS_ROUTE } from '../../config/catalogo-subtipo-accion.rutas';
 
-/** Un registro ya aceptado, como se lista en la tabla de «Registro del catálogo». */
-interface RegistroGuardado {
+/** Una fila del overlay «Seleccionar registro» de la solicitud de Modificación. */
+interface FilaRegistro {
+  id: string;
   codigo: string;
-  proceso: OpcionCatalogo;
-  rol: OpcionCatalogo;
-  perfil: OpcionCatalogo;
-  tipoAccion: OpcionCatalogo;
+  proceso: string;
+  rol: string;
+  perfil: string;
+  tipoAccion: string;
   subtipo: string;
-  estado: 'si' | 'no';
+  estado: string;
   fechaDesde: string;
   fechaHasta: string;
 }
@@ -63,6 +68,7 @@ interface RegistroGuardado {
   selector: 'siaf-catalogo-subtipo-accion-request',
   standalone: true,
   imports: [
+    NgClass,
     SolicitudePageLayoutComponent,
     SolicitudeInfoCardComponent,
     SolicitudeFormCardComponent,
@@ -74,6 +80,7 @@ interface RegistroGuardado {
     ActionTrackerComponent,
     ButtonComponent,
     CheckboxComponent,
+    IconComponent,
     ReadonlyFieldComponent,
     SummaryCardComponent,
     SnackbarComponent,
@@ -86,10 +93,51 @@ interface RegistroGuardado {
 })
 export class CatalogoSubtipoAccionRequestComponent {
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
   private readonly currentUser = inject(CurrentUserService);
+  private readonly registrosStore = inject(RegistrosCatalogoStore);
 
   readonly heading = NOMBRE_SOLICITUD;
   readonly breadcrumbs: BreadcrumbItem[] = buildProcessBreadcrumbs(CATALOGO_PROCESS_ID, PROCESS_ROUTE, 'Registro');
+
+  /** Tipo de acción de la solicitud (del «Crear documento»): creación por defecto, o modificación. */
+  readonly esModificacion = signal(this.route.snapshot.queryParamMap.get('actionType') === 'modificacion');
+  /** Subtítulo de la cabecera (Creación / Modificación). */
+  readonly subtitulo = computed(() => (this.esModificacion() ? 'Modificación' : 'Creación'));
+
+  // ── Solicitud de Modificación: registro elegido con el overlay «Seleccionar registro» ──
+  readonly registroModif = signal<RegistroGuardado | null>(null);
+  readonly buscarRegistroAbierto = signal(false);
+  readonly busquedaRegistro = signal('');
+  readonly idsRegistro = signal<string[]>([]);
+  readonly columnasRegistro: SelectionColumn<FilaRegistro>[] = [
+    { key: 'codigo', label: 'Código', widthClass: 'w-[90px]' },
+    { key: 'proceso', label: 'Proceso', widthClass: 'min-w-[220px]' },
+    { key: 'rol', label: 'Rol', widthClass: 'w-[140px]' },
+    { key: 'perfil', label: 'Perfil', widthClass: 'w-[140px]' },
+    { key: 'tipoAccion', label: 'Tipo de acción', widthClass: 'w-[150px]' },
+    { key: 'subtipo', label: 'Subtipo de acción', widthClass: 'min-w-[160px]' },
+    { key: 'estado', label: 'Estado', widthClass: 'w-[90px]' },
+    { key: 'fechaDesde', label: 'Fecha desde', widthClass: 'w-[130px]' },
+    { key: 'fechaHasta', label: 'Fecha hasta', widthClass: 'w-[130px]' },
+  ];
+  /** Filas del overlay: todos los registros del store (data de prueba + creados). */
+  readonly filasRegistro = computed<FilaRegistro[]>(() =>
+    this.filtrarRegistros(this.registrosStore.registros(), this.busquedaRegistro()),
+  );
+
+  // ── Solicitud de Modificación: grilla y edición del registro elegido ──
+  /** Fila de la grilla de modificación marcada con el checkbox (habilita Editar / Eliminar). */
+  readonly filaModifSel = signal(false);
+  /** En edición: el formulario «Detalles del catálogo» con solo Subtipo y Estado habilitados. */
+  readonly editando = signal(false);
+  /** El registro ya fue editado y aceptado (marca la fila con el ícono «modificado»). */
+  readonly registroModificado = signal(false);
+  /** Valores editables en modo edición (los únicos que se pueden cambiar). */
+  readonly editSubtipo = signal('');
+  readonly editEstado = signal<'si' | 'no'>('si');
+  /** «Aceptar» de la edición: el Subtipo no puede quedar vacío. */
+  readonly edicionValida = computed(() => !!this.editSubtipo().trim());
 
   /** Opciones del estado de vigencia (Sí / No). */
   readonly opcionesEstado: RadioOption[] = [
@@ -124,6 +172,9 @@ export class CatalogoSubtipoAccionRequestComponent {
   /** Fecha/hora en que se grabó el documento (para la trazabilidad). */
   readonly fechaDocumento = signal('');
   readonly estadoDocumento = computed<FlowStatus>(() => (this.aceptada() ? 'Aceptado' : ESTADO.ELABORADO));
+
+  /** En Elaborado o Aceptado la grilla de registros es de solo lectura (sin selección múltiple ni checkbox). */
+  readonly soloLectura = computed(() => this.elaborada() || this.aceptada());
 
   /** Trazabilidad (Elaborado / Verificado / Aceptado por). */
   readonly trazabilidad = computed<ActionTrackerSummary[]>(() => {
@@ -202,6 +253,77 @@ export class CatalogoSubtipoAccionRequestComponent {
   private filtrar(opciones: OpcionCatalogo[], termino: string): OpcionCatalogo[] {
     const q = termino.trim().toLowerCase();
     return q ? opciones.filter((o) => `${o.codigo} ${o.nombre}`.toLowerCase().includes(q)) : opciones;
+  }
+
+  /** Mapea los registros del store a filas del overlay y los filtra por el buscador. */
+  private filtrarRegistros(registros: readonly RegistroGuardado[], termino: string): FilaRegistro[] {
+    const filas = registros.map((r) => ({
+      id: r.codigo,
+      codigo: r.codigo,
+      proceso: `${r.proceso.codigo} ${r.proceso.nombre}`,
+      rol: `${r.rol.codigo} ${r.rol.nombre}`,
+      perfil: `${r.perfil.codigo} ${r.perfil.nombre}`,
+      tipoAccion: `${r.tipoAccion.codigo} ${r.tipoAccion.nombre}`,
+      subtipo: r.subtipo,
+      estado: r.estado === 'si' ? 'Sí' : 'No',
+      fechaDesde: r.fechaDesde || '--/--/----',
+      fechaHasta: r.fechaHasta || '--/--/----',
+    }));
+    const q = termino.trim().toLowerCase();
+    return q ? filas.filter((f) => Object.values(f).join(' ').toLowerCase().includes(q)) : filas;
+  }
+
+  // ── Solicitud de Modificación: overlay «Seleccionar registro» ──
+  abrirBuscarRegistro(): void {
+    this.idsRegistro.set(this.registroModif() ? [this.registroModif()!.codigo] : []);
+    this.buscarRegistroAbierto.set(true);
+  }
+
+  aceptarRegistroModif(ids: string[]): void {
+    const registro = this.registrosStore.registros().find((r) => r.codigo === ids[0]) ?? null;
+    this.registroModif.set(registro);
+    this.buscarRegistroAbierto.set(false);
+    // Un registro recién elegido parte sin selección de fila, sin editar y sin marca de modificado.
+    this.filaModifSel.set(false);
+    this.editando.set(false);
+    this.registroModificado.set(false);
+  }
+
+  limpiarRegistroModif(): void {
+    this.registroModif.set(null);
+    this.idsRegistro.set([]);
+    this.filaModifSel.set(false);
+    this.editando.set(false);
+    this.registroModificado.set(false);
+  }
+
+  // ── Grilla de «Registro de modificación»: seleccionar, editar o eliminar la fila ──
+  /** Entra al formulario de edición (solo con la fila marcada). Carga Subtipo y Estado actuales. */
+  iniciarEdicion(): void {
+    const r = this.registroModif();
+    if (!this.filaModifSel() || !r) return;
+    this.editSubtipo.set(r.subtipo);
+    this.editEstado.set(r.estado);
+    this.editando.set(true);
+  }
+
+  /** Cancela la edición y vuelve a la grilla sin cambios. */
+  cancelarEdicion(): void {
+    this.editando.set(false);
+  }
+
+  /** Acepta la edición: aplica Subtipo y Estado al registro y marca la fila como modificada. */
+  aceptarEdicion(): void {
+    if (!this.edicionValida()) return;
+    this.registroModif.update((r) => (r ? { ...r, subtipo: this.editSubtipo().trim(), estado: this.editEstado() } : r));
+    this.registroModificado.set(true);
+    this.editando.set(false);
+    this.filaModifSel.set(false);
+  }
+
+  /** Quita el registro elegido y vuelve al placeholder con la lupa. */
+  eliminarRegistroModif(): void {
+    this.limpiarRegistroModif();
   }
 
   /** «Aceptar» del registro: los cuatro selectores y el Subtipo escrito. */
@@ -379,10 +501,26 @@ export class CatalogoSubtipoAccionRequestComponent {
   onConfirmarVerificar(): void {
     this.modalVerificar.set(false);
     this.aceptada.set(true);
-    // El backend asigna el código del registro al aceptar; en el taller va correlativo simple.
-    this.registros.update((lista) => lista.map((r, i) => ({ ...r, codigo: String(i + 1) })));
+    // El backend asigna el código del registro y la fecha de inicio de vigencia al aceptar; en el taller va
+    // correlativo simple y la «Fecha desde» toma la fecha de aceptación (ver nota del formulario).
+    const aceptados = this.registros().map((r, i) => ({ ...r, codigo: String(i + 1), fechaDesde: this.fechaHoy() }));
+    this.registros.set(aceptados);
+    // Los registros aceptados en «Creación» alimentan la pestaña «Registros» y el overlay de Modificación.
+    this.registrosStore.agregar(aceptados);
+
+    // Modificación: al aceptar, si la vigencia quedó en «No» la «Fecha hasta» toma la fecha de aceptación
+    // (antes de aceptar se mostraba «--/--/----»). Se refleja en la grilla, el detalle y la pestaña «Registros».
+    const modificado = this.registroModif();
+    if (this.esModificacion() && modificado) {
+      const actualizado: RegistroGuardado = {
+        ...modificado,
+        fechaHasta: modificado.estado === 'no' ? this.fechaHoy() : modificado.fechaHasta,
+      };
+      this.registroModif.set(actualizado);
+      this.registrosStore.actualizar(actualizado);
+    }
     this.aviso.set('custom');
-    this.avisoMensaje.set(`La solicitud de tipo creación número ${this.numeroDocumento()} se ha aceptado con éxito.`);
+    this.avisoMensaje.set(`La solicitud de tipo ${this.subtitulo().toLowerCase()} número ${this.numeroDocumento()} se ha aceptado con éxito.`);
     this.avisoAbierto.set(true);
   }
 
@@ -396,6 +534,19 @@ export class CatalogoSubtipoAccionRequestComponent {
     const d = new Date();
     const p = (n: number) => String(n).padStart(2, '0');
     return `${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear()}  ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+  }
+
+  /** Convierte una fecha dd/mm/yyyy a ISO (yyyy-mm-dd) para alimentar `siaf-date-time-picker`. */
+  aIso(fecha: string): string {
+    const [d, m, y] = (fecha ?? '').split('/');
+    return d && m && y ? `${y}-${m}-${d}` : '';
+  }
+
+  /** Fecha actual (dd/mm/yyyy) para la «Fecha desde» de vigencia al aceptar la solicitud. */
+  private fechaHoy(): string {
+    const d = new Date();
+    const p = (n: number) => String(n).padStart(2, '0');
+    return `${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear()}`;
   }
 
   /** Flecha de regreso del header: desde el detalle vuelve a la grilla; si no, al escritorio. */

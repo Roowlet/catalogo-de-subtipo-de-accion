@@ -106,48 +106,8 @@ export const DEFAULT_PROCESS_TREE: ProcessMenuNode[] = [
       },
     ],
   },
-  // Maqueta del árbol «MFD · Gestión de Modificación de la APM» (Figma). Todo «Próximamente»:
-  // reproduce la jerarquía del diseño sin navegación. «Gestión de Asignación Presupuestaria Multianual»
-  // no es un nodo real del diseño sino el encabezado de sección de «Catálogos»; como el menú no tiene
-  // encabezados de sección, se maqueta como un nodo agrupador atenuado.
-  // Rama APM: Procesos presupuesto › Programación multianual presupuestaria (DGPP - MEF) - APM.
-  // «Generación de reporte APM» está implementado (su hoja «Configuración» abre el Catálogo de
-  // Versiones); el resto es maqueta «Próximamente».
-  {
-    id: 'procesos-presupuesto',
-    label: 'Procesos presupuesto',
-    children: [
-      {
-        id: 'programacion-multianual-apm',
-        label: 'Programación multianual presupuestaria (DGPP - MEF) - APM',
-        children: [
-          {
-            id: 'generacion-reporte-apm',
-            label: 'Generación de reporte APM',
-            children: [
-              {
-                id: 'generacion-reporte-apm-configuracion',
-                label: 'Configuración de la generación de reporte APM',
-                moduleRoute: '/procesos/generacion-reporte-apm',
-              },
-              {
-                id: 'generacion-reporte-apm-documentos',
-                label: 'Documentos y registros de la generación de reporte APM',
-                comingSoon: true,
-              },
-              {
-                id: 'generacion-reporte-apm-consultas',
-                label: 'Consultas de la generación de reporte APM',
-                comingSoon: true,
-              },
-            ],
-          },
-          { id: 'modificacion-apm-proceso', label: 'Modificación de la APM', comingSoon: true, expandable: true },
-          { id: 'desagregacion-apm', label: 'Desagregación de la APM', comingSoon: true, expandable: true },
-        ],
-      },
-    ],
-  },
+  // «Procesos presupuesto» (rama APM: Programación multianual, Generación de reporte APM, Modificación de la
+  // APM, Desagregación) pertenece a otro proyecto y se excluye de este taller.
   {
     id: 'clasificadores-catalogos',
     label: 'Clasificadores y catálogos',
@@ -201,10 +161,10 @@ export const DEFAULT_PROCESS_TREE: ProcessMenuNode[] = [
                   {
                     label: 'Solicitud de Subtipo de Acción',
                     route: '/procesos/catalogo-subtipo-accion/solicitud',
-                    actionTypes: ['Creación'],
+                    actionTypes: ['Creación', 'Modificación'],
                   },
                 ],
-                actionTypeOptions: ['Creación'],
+                actionTypeOptions: ['Creación', 'Modificación'],
               },
               {
                 id: 'catalogo-subtipo-accion-consultas',

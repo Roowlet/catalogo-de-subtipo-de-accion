@@ -82,3 +82,37 @@ export function registroVacio(): RegistroCatalogo {
     fechaHasta: '',
   };
 }
+
+/**
+ * Un registro del catálogo ya aceptado, como se lista en la tabla de «Registro del catálogo», en la pestaña
+ * «Registros» de Documentos y registros, y en el overlay de selección de la solicitud de Modificación.
+ */
+export interface RegistroGuardado {
+  codigo: string;
+  proceso: OpcionCatalogo;
+  rol: OpcionCatalogo;
+  perfil: OpcionCatalogo;
+  tipoAccion: OpcionCatalogo;
+  subtipo: string;
+  estado: 'si' | 'no';
+  fechaDesde: string;
+  fechaHasta: string;
+}
+
+/**
+ * Data de prueba de registros del catálogo (uno por proceso). En el taller alimenta la pestaña «Registros» y el
+ * overlay de la solicitud de Modificación; a estos se suman los registros que se vayan creando en «Creación».
+ */
+export function registrosSemilla(): RegistroGuardado[] {
+  return PROCESOS.map((proceso, i) => ({
+    codigo: String(i + 1),
+    proceso,
+    rol: ROLES[0], // 1 Creador
+    perfil: PERFILES[0], // 1 Entidad
+    tipoAccion: TIPOS_ACCION[1], // 2 Modificación
+    subtipo: 'Nombre',
+    estado: 'si',
+    fechaDesde: '19/08/2025',
+    fechaHasta: '',
+  }));
+}

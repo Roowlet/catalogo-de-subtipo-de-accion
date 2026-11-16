@@ -26,14 +26,6 @@ export const PRESUPUESTO_ROUTES: Routes = [
       ),
   },
   {
-    // Proceso «Generación de reporte APM»: Catálogo de Versiones (importación de estructura).
-    path: 'procesos/generacion-reporte-apm',
-    loadComponent: () =>
-      import('./generacion-reporte-apm/pages/catalogo-versiones/generacion-reporte-apm.component').then(
-        (m) => m.GeneracionReporteApmComponent,
-      ),
-  },
-  {
     // La ruta base del proceso redirige a la solicitud (no hay página de Documentos y registros).
     path: 'procesos/modificacion-apm',
     pathMatch: 'full',
