@@ -3,17 +3,17 @@
   <siaf-solicitude-page-layout
     [breadcrumbs]="breadcrumbs"
     role="creator"
-    [state]="elaborada() ? 'elaborated' : 'new'"
+    [state]="eliminada() ? 'deleted' : (editandoSolicitud() ? 'edit' : (elaborada() ? 'elaborated' : 'new'))"
     [heading]="detalle() ? 'Registro del catálogo' : heading"
     [secondaryText]="detalle() ? '' : subtitulo()"
     [showReturn]="true"
-    [showTag]="!detalle() && !elaborada()"
+    [showTag]="!detalle() && !elaborada() && !eliminada()"
     [customActions]="!!detalle()"
-    [showButtonGroup]="!detalle() && !aceptada()"
-    [saveDisabled]="esModificacion() ? (!registroModif() || editando()) : registros().length === 0"
-    [verifyDisabled]="!elaborada()"
+    [showButtonGroup]="!detalle() && !aceptada() && !eliminada()"
+    [saveDisabled]="esModificacion() ? (!registroModif() || editando() || (editandoSolicitud() && !cambiosEnEdicion())) : (editandoSolicitud() ? (!cambiosEnEdicion() || mostrandoFormulario()) : (registros().length === 0 || mostrandoFormulario()))"
+    [verifyDisabled]="!elaborada() || mostrandoFormulario() || editando()"
     (returned)="onReturn()"
-    (canceled)="regresar()"
+    (canceled)="onCancelar()"
     (saved)="modalGrabar.set(true)"
     (verified)="modalVerificar.set(true)"
     (edited)="volverAEditar()"
@@ -148,13 +148,15 @@
         </div>
 
         <div class="flex flex-col gap-siaf-md">
-          <!-- Controles: seleccionar la fila habilita Editar y Eliminar -->
+          <!-- Controles: seleccionar la fila habilita Editar y Eliminar (solo en «Nuevo» y «Edición»). -->
           <div class="flex min-h-10 items-center justify-between gap-siaf-md">
-            <div class="flex items-center gap-siaf-sm">
-              <siaf-checkbox [checked]="filaModifSel()" (checkedChange)="filaModifSel.set($any($event))" />
-              @if (filaModifSel()) {
-                <siaf-button variant="text" size="sm" icon="edit" [iconOnly]="true" ariaLabel="Editar" (click)="iniciarEdicion()" />
-                <siaf-button variant="text" size="sm" icon="delete" [iconOnly]="true" ariaLabel="Eliminar" (click)="eliminarRegistroModif()" />
+            <div class="flex items-center gap-siaf-sm pl-siaf-sm">
+              @if (filasEditables()) {
+                <siaf-checkbox [checked]="filaModifSel()" (checkedChange)="filaModifSel.set($any($event))" />
+                @if (filaModifSel()) {
+                  <siaf-button variant="text" size="sm" icon="edit" [iconOnly]="true" ariaLabel="Editar" (click)="iniciarEdicion()" />
+                  <siaf-button variant="text" size="sm" icon="delete" [iconOnly]="true" ariaLabel="Borrar" (click)="modalBorrarFilas.set(true)" />
+                }
               }
             </div>
             <span class="text-sm text-[var(--sys-color-text-neutral-medium)]">1-1 de 1</span>
@@ -164,7 +166,9 @@
             <table class="w-full border-collapse text-left text-sm">
               <thead>
                 <tr class="bg-[var(--sys-color-bg-surfaces-surface-high)] text-[var(--sys-color-text-neutral-high)]">
-                  <th rowspan="2" class="w-12 border-b border-[var(--sys-color-divider-default)] px-siaf-sm py-siaf-sm"></th>
+                  @if (filasEditables()) {
+                    <th rowspan="2" class="w-12 border-b border-[var(--sys-color-divider-default)] px-siaf-sm py-siaf-sm"></th>
+                  }
                   <th rowspan="2" class="w-10 border-b border-[var(--sys-color-divider-default)] px-siaf-sm py-siaf-sm"></th>
                   <th rowspan="2" class="border-b border-[var(--sys-color-divider-default)] px-siaf-md py-siaf-sm text-xs font-bold uppercase tracking-[0.02px]">Código</th>
                   <th rowspan="2" class="border-b border-[var(--sys-color-divider-default)] px-siaf-md py-siaf-sm text-xs font-bold uppercase tracking-[0.02px]">Proceso</th>
@@ -181,8 +185,10 @@
                 </tr>
               </thead>
               <tbody>
-                <tr class="cursor-pointer border-b border-[var(--sys-color-divider-default)] transition hover:bg-[var(--sys-color-bg-states-light-hover)]" [ngClass]="filaModifSel() ? 'bg-[var(--sys-color-bg-states-light-selected)]' : ''" (click)="verDetalle(d)">
-                  <td class="px-siaf-sm py-siaf-sm align-middle" (click)="$event.stopPropagation()"><siaf-checkbox [checked]="filaModifSel()" (checkedChange)="filaModifSel.set($any($event))" /></td>
+                <tr class="cursor-pointer border-b border-[var(--sys-color-divider-default)] transition hover:bg-[var(--sys-color-bg-states-light-hover)]" [ngClass]="filasEditables() && filaModifSel() ? 'bg-[var(--sys-color-bg-states-light-selected)]' : ''" (click)="verDetalle(d)">
+                  @if (filasEditables()) {
+                    <td class="px-siaf-sm py-siaf-sm align-middle" (click)="$event.stopPropagation()"><siaf-checkbox [checked]="filaModifSel()" (checkedChange)="filaModifSel.set($any($event))" /></td>
+                  }
                   <td class="px-siaf-sm py-siaf-sm align-middle text-[var(--sys-color-text-neutral-medium)]">
                     <!-- Antes de editar, el registro de la modificación; una vez editado, cambia a «edit_note». -->
                     <siaf-icon [name]="registroModificado() ? 'edit_note' : 'notes'" [size]="20" [decorative]="false" [label]="registroModificado() ? 'Registro modificado' : 'Registro de la modificación'" />
@@ -231,13 +237,15 @@
     <!-- ── Registro del catálogo: placeholder con (+) Añadir o formulario «Detalles del catálogo» ── -->
     <siaf-solicitude-form-card title="Registro del catálogo">
       <div card-actions class="flex items-center gap-siaf-sm">
-        @if (!elaborada()) {
-          @if (!mostrandoFormulario()) {
-            <siaf-button variant="accent" size="md" icon="add" [iconOnly]="true" ariaLabel="Añadir" (click)="anadir()" />
-          } @else {
+        @if (mostrandoFormulario()) {
+          <!-- Editando (o añadiendo) un registro: disponible en «Nuevo» y en «Elaborado». -->
+          @if (filasEditables()) {
             <siaf-button variant="outline" size="md" icon="close" (click)="cancelarRegistro()">Cancelar</siaf-button>
             <siaf-button variant="filled" size="md" [disabled]="!formValido()" (click)="aceptarRegistro()">Aceptar</siaf-button>
           }
+        } @else if (!elaborada()) {
+          <!-- «Añadir» un registro nuevo solo antes de grabar (en «Nuevo»). -->
+          <siaf-button variant="accent" size="md" icon="add" [iconOnly]="true" ariaLabel="Añadir" (click)="anadir()" />
         }
       </div>
 
@@ -245,19 +253,26 @@
         @if (registros().length) {
           <!-- Tabla de registros aceptados -->
           <div class="flex flex-col gap-siaf-md">
-            <siaf-table-controls
-              selectAllLabel="Seleccionar registros"
-              [showSelection]="!soloLectura()"
-              [page]="1"
-              [pageSize]="25"
-              [totalItems]="registros().length"
-              [totalPages]="1"
-            />
+            @if (filasEditables()) {
+              <!-- Barra: seleccionar la(s) fila(s) habilita Editar (una sola) y Borrar (una o varias). -->
+              <div class="flex min-h-10 items-center justify-between gap-siaf-md">
+                <div class="flex items-center gap-siaf-sm pl-siaf-sm">
+                  <siaf-checkbox [checked]="todasFilasSel()" (checkedChange)="alternarTodasFilas($any($event))" />
+                  @if (algunaFilaSel()) {
+                    @if (unaFilaSel()) {
+                      <siaf-button variant="text" size="sm" icon="edit" [iconOnly]="true" ariaLabel="Editar" (click)="editarFilaSel()" />
+                    }
+                    <siaf-button variant="text" size="sm" icon="delete" [iconOnly]="true" ariaLabel="Borrar" (click)="modalBorrarFilas.set(true)" />
+                  }
+                </div>
+                <span class="text-sm text-[var(--sys-color-text-neutral-medium)]">1-{{ registros().length }} de {{ registros().length }}</span>
+              </div>
+            }
             <div class="overflow-x-auto">
               <table class="w-full border-collapse text-left text-sm">
                 <thead>
                   <tr class="bg-[var(--sys-color-bg-surfaces-surface-high)] text-[var(--sys-color-text-neutral-high)]">
-                    @if (!soloLectura()) {
+                    @if (filasEditables()) {
                       <th rowspan="2" class="w-12 border-b border-[var(--sys-color-divider-default)] px-siaf-sm py-siaf-sm"></th>
                     }
                     <th rowspan="2" class="border-b border-[var(--sys-color-divider-default)] px-siaf-md py-siaf-sm text-xs font-bold uppercase tracking-[0.02px]">Código</th>
@@ -276,9 +291,9 @@
                 </thead>
                 <tbody>
                   @for (r of registros(); track $index) {
-                    <tr class="cursor-pointer border-b border-[var(--sys-color-divider-default)] transition hover:bg-[var(--sys-color-bg-states-light-hover)]" (click)="verDetalle(r)">
-                      @if (!soloLectura()) {
-                        <td class="px-siaf-sm py-siaf-sm align-middle" (click)="$event.stopPropagation()"><siaf-checkbox /></td>
+                    <tr class="cursor-pointer border-b border-[var(--sys-color-divider-default)] transition hover:bg-[var(--sys-color-bg-states-light-hover)]" [ngClass]="filasEditables() && filaSeleccionada($index) ? 'bg-[var(--sys-color-bg-states-light-selected)]' : ''" (click)="verDetalle(r)">
+                      @if (filasEditables()) {
+                        <td class="px-siaf-sm py-siaf-sm align-middle" (click)="$event.stopPropagation()"><siaf-checkbox [checked]="filaSeleccionada($index)" (checkedChange)="alternarFila($index, $any($event))" /></td>
                       }
                       <td class="px-siaf-md py-siaf-sm align-middle text-[var(--sys-color-text-neutral-high)]">{{ r.codigo }}</td>
                       <td class="px-siaf-md py-siaf-sm align-middle text-[var(--sys-color-text-neutral-high)]">{{ r.proceso.codigo }} {{ r.proceso.nombre }}</td>
@@ -453,7 +468,8 @@
       }
     </siaf-solicitude-form-card>
 
-    @if (elaborada()) {
+    <!-- La trazabilidad se oculta mientras el formulario de edición está abierto; vuelve al cerrarlo. -->
+    @if (elaborada() && !mostrandoFormulario()) {
       <siaf-action-tracker [showSummaryCards]="true" [showTabs]="false" [summaryItems]="trazabilidad()" />
     }
     }
@@ -545,7 +561,7 @@
         [open]="true"
         tone="success"
         variant="custom"
-        message="El registro se ha realizado con éxito"
+        [message]="snackbarMensaje()"
         [dismissible]="true"
         (closed)="cerrarSnackbar()"
       />
@@ -567,8 +583,20 @@
     (saveClosed)="modalGrabar.set(false)"
     (verifyConfirmed)="onConfirmarVerificar()"
     (verifyClosed)="modalVerificar.set(false)"
-    (deleteConfirmed)="modalEliminar.set(false)"
+    (deleteConfirmed)="onConfirmarEliminar()"
     (deleteClosed)="modalEliminar.set(false)"
     (snackbarClosed)="avisoAbierto.set(false)"
+  />
+
+  <!-- Modal «¿Borrar registro?» de las filas seleccionadas de «Registro del catálogo». -->
+  <siaf-modal
+    variant="delete-record"
+    [open]="modalBorrarFilas()"
+    description="Perderá todos los datos del(os) registro(s) ingresado(s)."
+    confirmVariant="primary"
+    [showIllustration]="true"
+    (canceled)="modalBorrarFilas.set(false)"
+    (closed)="modalBorrarFilas.set(false)"
+    (confirmed)="confirmarBorrarFilas()"
   />
 </div>

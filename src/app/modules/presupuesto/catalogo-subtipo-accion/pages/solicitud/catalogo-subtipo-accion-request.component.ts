@@ -12,7 +12,6 @@ import { ESTADO } from '../../../../../core/models/documento.model';
 import { FlowStatus } from '../../../../../shared/ui/flow-status-tag/flow-status-tag.component';
 import { SnackbarVariant } from '../../../../../shared/ui/snackbar/snackbar.component';
 import { PaginationComponent } from '../../../../../shared/components/pagination/pagination.component';
-import { TableControlsComponent } from '../../../../../shared/components/table-controls/table-controls.component';
 import { SelectionColumn, SelectionSideNavComponent } from '../../../../../shared/components/selection-side-nav/selection-side-nav.component';
 import { SolicitudeFormCardComponent } from '../../../../../shared/components/solicitude-form-card/solicitude-form-card.component';
 import { SolicitudeInfoCardComponent, SolicitudeInfoField } from '../../../../../shared/components/solicitude-info-card/solicitude-info-card.component';
@@ -20,6 +19,7 @@ import { SolicitudePageLayoutComponent } from '../../../../../shared/components/
 import { ButtonComponent } from '../../../../../shared/ui/button/button.component';
 import { CheckboxComponent } from '../../../../../shared/ui/checkbox/checkbox.component';
 import { IconComponent } from '../../../../../shared/ui/icon/icon.component';
+import { ModalComponent } from '../../../../../shared/ui/modal/modal.component';
 import { ReadonlyFieldComponent } from '../../../../../shared/ui/readonly-field/readonly-field.component';
 import { SummaryCardComponent } from '../../../../../shared/ui/summary-card/summary-card.component';
 import { SnackbarComponent } from '../../../../../shared/ui/snackbar/snackbar.component';
@@ -73,7 +73,6 @@ interface FilaRegistro {
     SolicitudeInfoCardComponent,
     SolicitudeFormCardComponent,
     SelectionSideNavComponent,
-    TableControlsComponent,
     PaginationComponent,
     RequestApprovalModalsComponent,
     DocumentSummaryCardComponent,
@@ -81,6 +80,7 @@ interface FilaRegistro {
     ButtonComponent,
     CheckboxComponent,
     IconComponent,
+    ModalComponent,
     ReadonlyFieldComponent,
     SummaryCardComponent,
     SnackbarComponent,
@@ -160,6 +160,75 @@ export class CatalogoSubtipoAccionRequestComponent {
   /** Registros ya aceptados que se listan en la tabla de «Registro del catálogo». */
   readonly registros = signal<RegistroGuardado[]>([]);
 
+  // ── «Registro del catálogo» (Creación): selección de filas, edición y borrado ──
+  /** Índices de las filas marcadas con el checkbox (habilitan Editar / Borrar). */
+  readonly seleccionRegistros = signal<number[]>([]);
+  /** Índice de la fila en edición (Creación); null = alta de un registro nuevo. */
+  readonly editandoIndice = signal<number | null>(null);
+  /** Modal «¿Borrar registro?» de las filas seleccionadas. */
+  readonly modalBorrarFilas = signal(false);
+
+  readonly algunaFilaSel = computed(() => this.seleccionRegistros().length > 0);
+  /** «Editar» es fila por fila: solo con una marcada. */
+  readonly unaFilaSel = computed(() => this.seleccionRegistros().length === 1);
+  /** El checkbox de «seleccionar todo» del encabezado de la barra. */
+  readonly todasFilasSel = computed(
+    () => this.registros().length > 0 && this.seleccionRegistros().length === this.registros().length,
+  );
+
+  filaSeleccionada(indice: number): boolean {
+    return this.seleccionRegistros().includes(indice);
+  }
+
+  /** Marca o desmarca una fila. */
+  alternarFila(indice: number, marcado: boolean): void {
+    this.seleccionRegistros.update((sel) => (marcado ? [...sel, indice] : sel.filter((i) => i !== indice)));
+  }
+
+  /** «Seleccionar todo»: marca o desmarca todas las filas. */
+  alternarTodasFilas(marcado: boolean): void {
+    this.seleccionRegistros.set(marcado ? this.registros().map((_, i) => i) : []);
+  }
+
+  /** «Editar» (lápiz): reabre el formulario precargado con la fila marcada para modificarla. */
+  editarFilaSel(): void {
+    if (!this.unaFilaSel()) return;
+    const indice = this.seleccionRegistros()[0];
+    const r = this.registros()[indice];
+    if (!r) return;
+    this.procesoSel.set(r.proceso);
+    this.rolSel.set(r.rol);
+    this.perfilSel.set(r.perfil);
+    this.tipoSel.set(r.tipoAccion);
+    this.registro.set({
+      codigo: r.codigo,
+      proceso: r.proceso.nombre,
+      rol: r.rol.nombre,
+      perfil: r.perfil.nombre,
+      tipoAccion: r.tipoAccion.nombre,
+      subtipoAccion: r.subtipo,
+      estado: r.estado,
+      fechaDesde: r.fechaDesde,
+      fechaHasta: r.fechaHasta,
+    });
+    this.editandoIndice.set(indice);
+    this.mostrandoFormulario.set(true);
+  }
+
+  /** «Borrar» (basura) de la grilla: confirma el modal y quita la(s) fila(s); en Modificación quita el registro elegido. */
+  confirmarBorrarFilas(): void {
+    this.modalBorrarFilas.set(false);
+    if (this.esModificacion()) {
+      this.eliminarRegistroModif();
+    } else {
+      const seleccionadas = new Set(this.seleccionRegistros());
+      this.registros.update((lista) => lista.filter((_, i) => !seleccionadas.has(i)));
+      this.seleccionRegistros.set([]);
+    }
+    if (this.editandoSolicitud()) this.cambiosEnEdicion.set(true);
+    this.mostrarSnackbar('El registro ha sido eliminado con éxito del listado.');
+  }
+
   /** Registro en modo detalle (solo lectura); si no es null, la pantalla muestra el detalle en vez de la grilla. */
   readonly detalle = signal<RegistroGuardado | null>(null);
 
@@ -168,13 +237,32 @@ export class CatalogoSubtipoAccionRequestComponent {
   readonly elaborada = signal(false);
   /** La solicitud fue verificada y aceptada automáticamente (estado final). */
   readonly aceptada = signal(false);
+  /** La solicitud fue eliminada (tacho del header en Elaborado): estado final «Eliminado», solo lectura. */
+  readonly eliminada = signal(false);
+  /** Modo «Edición» del documento elaborado (tras pulsar «Editar»): la grilla vuelve a ser interactiva. */
+  readonly editandoSolicitud = signal(false);
+  /** Hubo cambios en el modo «Edición» (editar o borrar filas): habilita «Grabar». */
+  readonly cambiosEnEdicion = signal(false);
+  /** Copia de los registros (Creación) al entrar a «Edición», para restaurarla si se cancela. */
+  private registrosSnapshot: RegistroGuardado[] = [];
+  /** Copia del registro de Modificación y su marca «modificado» al entrar a «Edición», para restaurarlos al cancelar. */
+  private registroModifSnapshot: RegistroGuardado | null = null;
+  private registroModificadoSnapshot = false;
   readonly numeroDocumento = signal('');
   /** Fecha/hora en que se grabó el documento (para la trazabilidad). */
   readonly fechaDocumento = signal('');
-  readonly estadoDocumento = computed<FlowStatus>(() => (this.aceptada() ? 'Aceptado' : ESTADO.ELABORADO));
+  readonly estadoDocumento = computed<FlowStatus>(() =>
+    this.eliminada() ? 'Eliminado' : this.aceptada() ? 'Aceptado' : ESTADO.ELABORADO,
+  );
 
-  /** En Elaborado o Aceptado la grilla de registros es de solo lectura (sin selección múltiple ni checkbox). */
-  readonly soloLectura = computed(() => this.elaborada() || this.aceptada());
+  /**
+   * La grilla es interactiva (checkbox + lápiz/tacho) solo mientras se edita: en «Nuevo» (antes de grabar) y en
+   * «Edición» (tras pulsar «Editar» sobre el documento elaborado). En «Elaborado» de solo lectura, «Aceptado» y
+   * «Eliminado» la grilla no tiene checkbox.
+   */
+  readonly filasEditables = computed(
+    () => (!this.elaborada() || this.editandoSolicitud()) && !this.aceptada() && !this.eliminada(),
+  );
 
   /** Trazabilidad (Elaborado / Verificado / Aceptado por). */
   readonly trazabilidad = computed<ActionTrackerSummary[]>(() => {
@@ -195,9 +283,12 @@ export class CatalogoSubtipoAccionRequestComponent {
   readonly aviso = signal<SnackbarVariant>('creation-elaborated');
   readonly avisoMensaje = signal('');
 
-  /** Snackbar «El registro se ha realizado con éxito». */
+  /** Snackbar de confirmación (alta, edición o borrado de un registro). */
   readonly snackbarAbierto = signal(false);
+  readonly snackbarMensaje = signal('El registro se ha realizado con éxito');
   private snackbarTimer?: ReturnType<typeof setTimeout>;
+  /** Timer del aviso del ciclo del documento (grabar/verificar/eliminar): también se autocierra. */
+  private avisoTimer?: ReturnType<typeof setTimeout>;
 
   // ── Selecciones con overlay (Proceso → Rol → Perfil → Tipo de acción) ──
   readonly procesoSel = signal<OpcionCatalogo | null>(null);
@@ -319,6 +410,7 @@ export class CatalogoSubtipoAccionRequestComponent {
     this.registroModificado.set(true);
     this.editando.set(false);
     this.filaModifSel.set(false);
+    if (this.editandoSolicitud()) this.cambiosEnEdicion.set(true);
   }
 
   /** Quita el registro elegido y vuelve al placeholder con la lupa. */
@@ -416,6 +508,7 @@ export class CatalogoSubtipoAccionRequestComponent {
 
   /** Abre el formulario de un registro nuevo (limpia los campos; conserva los ya aceptados). */
   anadir(): void {
+    this.editandoIndice.set(null);
     this.reiniciar();
     this.mostrandoFormulario.set(true);
   }
@@ -423,31 +516,38 @@ export class CatalogoSubtipoAccionRequestComponent {
   /** Cierra el formulario sin guardar y vuelve a la tabla (o al placeholder). */
   cancelarRegistro(): void {
     this.mostrandoFormulario.set(false);
+    this.editandoIndice.set(null);
     this.reiniciar();
   }
 
-  /** Acepta el registro: lo agrega a la tabla, cierra el formulario y avisa con el snackbar. */
+  /** Acepta el registro: lo agrega (o reemplaza si se está editando), cierra el formulario y avisa con el snackbar. */
   aceptarRegistro(): void {
     if (!this.formValido()) return;
     const r = this.registro();
-    this.registros.update((lista) => [
-      ...lista,
-      {
-        // El código lo asigna el backend al aceptar la solicitud; en el registro aún va vacío.
-        codigo: '-',
-        proceso: this.procesoSel()!,
-        rol: this.rolSel()!,
-        perfil: this.perfilSel()!,
-        tipoAccion: this.tipoSel()!,
-        subtipo: r.subtipoAccion.trim(),
-        estado: r.estado,
-        fechaDesde: r.fechaDesde,
-        fechaHasta: r.fechaHasta,
-      },
-    ]);
+    const indice = this.editandoIndice();
+    const guardado: RegistroGuardado = {
+      // El código lo asigna el backend al aceptar la solicitud; en el alta aún va sin asignar. En edición se conserva.
+      codigo: indice !== null ? this.registros()[indice].codigo : '-',
+      proceso: this.procesoSel()!,
+      rol: this.rolSel()!,
+      perfil: this.perfilSel()!,
+      tipoAccion: this.tipoSel()!,
+      subtipo: r.subtipoAccion.trim(),
+      estado: r.estado,
+      fechaDesde: r.fechaDesde,
+      fechaHasta: r.fechaHasta,
+    };
+    if (indice !== null) {
+      this.registros.update((lista) => lista.map((x, i) => (i === indice ? guardado : x)));
+    } else {
+      this.registros.update((lista) => [...lista, guardado]);
+    }
     this.mostrandoFormulario.set(false);
+    this.editandoIndice.set(null);
+    this.seleccionRegistros.set([]);
+    if (this.editandoSolicitud() && indice !== null) this.cambiosEnEdicion.set(true);
     this.reiniciar();
-    this.mostrarSnackbar();
+    this.mostrarSnackbar(indice !== null ? 'Los cambios se han realizado con éxito' : 'El registro se ha realizado con éxito');
   }
 
   /** Quita un registro de la tabla. */
@@ -455,11 +555,12 @@ export class CatalogoSubtipoAccionRequestComponent {
     this.registros.update((lista) => lista.filter((_, i) => i !== indice));
   }
 
-  private mostrarSnackbar(): void {
+  private mostrarSnackbar(mensaje = 'El registro se ha realizado con éxito'): void {
+    this.snackbarMensaje.set(mensaje);
     this.snackbarAbierto.set(true);
     clearTimeout(this.snackbarTimer);
-    // Se cierra solo a los ~2 s (o con la X del snackbar).
-    this.snackbarTimer = setTimeout(() => this.snackbarAbierto.set(false), 2500);
+    // Se cierra solo a los 2 s (o con la X del snackbar).
+    this.snackbarTimer = setTimeout(() => this.snackbarAbierto.set(false), 2000);
   }
 
   cerrarSnackbar(): void {
@@ -490,11 +591,15 @@ export class CatalogoSubtipoAccionRequestComponent {
   onConfirmarGrabar(): void {
     this.modalGrabar.set(false);
     this.elaborada.set(true);
+    // Si se grabó desde el modo «Edición», se cierra y los cambios quedan confirmados.
+    this.editandoSolicitud.set(false);
+    this.cambiosEnEdicion.set(false);
+    this.seleccionRegistros.set([]);
     this.numeroDocumento.set('0001');
     this.fechaDocumento.set(this.fechaHora());
     this.aviso.set('creation-elaborated');
     this.avisoMensaje.set('');
-    this.avisoAbierto.set(true);
+    this.mostrarAviso();
   }
 
   /** Confirma el modal «¿Verificar solicitud?»: verifica y acepta automáticamente (estado final). */
@@ -521,12 +626,63 @@ export class CatalogoSubtipoAccionRequestComponent {
     }
     this.aviso.set('custom');
     this.avisoMensaje.set(`La solicitud de tipo ${this.subtitulo().toLowerCase()} número ${this.numeroDocumento()} se ha aceptado con éxito.`);
-    this.avisoAbierto.set(true);
+    this.mostrarAviso();
   }
 
-  /** «Editar» del documento elaborado: vuelve al modo edición de la solicitud. */
+  /** Confirma el modal «¿Eliminar solicitud?» (tacho del header en Elaborado): marca «Eliminado» y avisa. */
+  onConfirmarEliminar(): void {
+    this.modalEliminar.set(false);
+    this.eliminada.set(true);
+    // Si se eliminó desde el modo «Edición», se cierra (el estado final es solo lectura).
+    this.editandoSolicitud.set(false);
+    this.cambiosEnEdicion.set(false);
+    this.seleccionRegistros.set([]);
+    this.aviso.set('custom');
+    this.avisoMensaje.set(`La solicitud de tipo ${this.subtitulo().toLowerCase()} con número ${this.numeroDocumento()} se ha eliminado.`);
+    this.mostrarAviso();
+  }
+
+  /** Muestra el aviso del ciclo del documento y lo autocierra a los 2 s (o con la X del snackbar). */
+  private mostrarAviso(): void {
+    this.avisoAbierto.set(true);
+    clearTimeout(this.avisoTimer);
+    this.avisoTimer = setTimeout(() => this.avisoAbierto.set(false), 2000);
+  }
+
+  /** «Editar» del documento elaborado: entra al modo «Edición» (grilla interactiva) conservando el N° y el estado. */
   volverAEditar(): void {
-    this.elaborada.set(false);
+    this.registrosSnapshot = this.registros().map((r) => ({ ...r }));
+    this.registroModifSnapshot = this.registroModif() ? { ...this.registroModif()! } : null;
+    this.registroModificadoSnapshot = this.registroModificado();
+    this.editandoSolicitud.set(true);
+    this.cambiosEnEdicion.set(false);
+    this.seleccionRegistros.set([]);
+    this.filaModifSel.set(false);
+    this.mostrandoFormulario.set(false);
+    this.editando.set(false);
+  }
+
+  /** «Cancelar» del modo «Edición»: descarta los cambios y vuelve al documento elaborado de solo lectura. */
+  cancelarEdicionSolicitud(): void {
+    this.registros.set(this.registrosSnapshot.map((r) => ({ ...r })));
+    this.registroModif.set(this.registroModifSnapshot ? { ...this.registroModifSnapshot } : null);
+    this.registroModificado.set(this.registroModificadoSnapshot);
+    this.editandoSolicitud.set(false);
+    this.cambiosEnEdicion.set(false);
+    this.seleccionRegistros.set([]);
+    this.filaModifSel.set(false);
+    this.mostrandoFormulario.set(false);
+    this.editando.set(false);
+    this.editandoIndice.set(null);
+  }
+
+  /** «Cancelar» del header: en «Edición» descarta los cambios; en «Nuevo» vuelve al escritorio. */
+  onCancelar(): void {
+    if (this.editandoSolicitud()) {
+      this.cancelarEdicionSolicitud();
+      return;
+    }
+    this.regresar();
   }
 
   /** Fecha y hora actual (dd/mm/yyyy hh:mm:ss) para la trazabilidad. */
