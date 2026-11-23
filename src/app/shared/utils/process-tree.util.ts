@@ -142,7 +142,7 @@ export const DEFAULT_PROCESS_TREE: ProcessMenuNode[] = [
               {
                 id: 'catalogo-subtipo-accion-consultas',
                 label: 'Consultas y reportes de subtipo de acción',
-                comingSoon: true,
+                moduleRoute: '/procesos/catalogo-subtipo-accion/consultas',
               },
             ],
           },

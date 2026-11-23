@@ -25,4 +25,12 @@ export const PRESUPUESTO_ROUTES: Routes = [
         (m) => m.CatalogoSubtipoAccionRequestComponent,
       ),
   },
+  {
+    // «Consultas y reportes de subtipo de acción».
+    path: 'procesos/catalogo-subtipo-accion/consultas',
+    loadComponent: () =>
+      import('./catalogo-subtipo-accion/pages/consultas/catalogo-subtipo-accion-consultas.component').then(
+        (m) => m.CatalogoSubtipoAccionConsultasComponent,
+      ),
+  },
 ];

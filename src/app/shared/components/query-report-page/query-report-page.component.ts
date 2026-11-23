@@ -4,6 +4,7 @@ import type {
   QueryReportChartType,
   QueryReportConfig,
   QueryReportExportFormat,
+  QueryReportParameterField,
   QueryReportParameters,
   QueryReportResult,
   QueryReportRow,
@@ -16,7 +17,9 @@ import type { ChartSeries } from '../../ui/charts/grafico-base';
 import { DivergingChartComponent } from '../../ui/diverging-chart/diverging-chart.component';
 import { DonutChartComponent } from '../../ui/donut-chart/donut-chart.component';
 import { EmptyStateComponent } from '../../ui/empty-state/empty-state.component';
-import { IconDropdownMenuComponent, IconDropdownMenuItem } from '../../ui/icon-dropdown-menu/icon-dropdown-menu.component';
+import { FocoDirective } from '../../ui/foco/foco.directive';
+import { IconComponent } from '../../ui/icon/icon.component';
+import { MenuComponent, MenuItem } from '../../ui/menu/menu.component';
 import { KpiCardComponent } from '../../ui/kpi-card/kpi-card.component';
 import { LineChartComponent } from '../../ui/line-chart/line-chart.component';
 import { MessageBoxComponent } from '../../ui/message-box/message-box.component';
@@ -77,7 +80,8 @@ let siguienteId = 0;
  * (nodo 22715:21316) y la vista de gráficas (nodo 22402:16766): tarjetas KPI y gráficos calculados con las mismas filas
  * que muestra la tabla, es decir, después de buscar y filtrar; un gráfico que se queda sin datos muestra un aviso en vez
  * de ejes vacíos. Esa vista se carga con `@defer` al abrirla, así Chart.js
- * no pesa en la pantalla hasta que alguien la usa. «Exportar» abre el menú Excel, CSV y PDF y emite `exported` con el
+ * no pesa en la pantalla hasta que alguien la usa. «Exportar» abre un menú de dos niveles (Excel / PDF y, dentro, el
+ * tipo de informe «Detallado») y emite `exported` con el
  * formato.
  *
  * No llama a la API: la pantalla consulta y entrega `result` (con `loading` mientras tanto).
@@ -95,8 +99,11 @@ let siguienteId = 0;
  *   (`index`) o variación respecto de ella (`change`). `width: 'narrow'` pone un gráfico en la columna de 336 px a la
  *   derecha del anterior, como en el Figma.
  * - `exported` para generar el archivo: trae el formato elegido y las filas que quedaron tras buscar y filtrar.
- * - `favoritesRequested`, `advancedFiltersRequested` y `columnsRequested` para lo que la pantalla resuelve por su cuenta
- *   mientras la plantilla no traiga esos paneles.
+ * - «Columnas visibles»: la plantilla trae su propio panel lateral (icono de columnas del buscador), con las columnas
+ *   agrupadas por su `group` y la columna llave (`rowKey`) siempre visible; además emite `columnsRequested` por si la
+ *   pantalla quiere reaccionar.
+ * - `favoritesRequested` y `advancedFiltersRequested` para lo que la pantalla resuelve por su cuenta mientras la
+ *   plantilla no traiga esos paneles.
  * @evitar
  * - Para la bandeja de documentos y registros de un proceso: usar `siaf-documents-records-page`.
  * - Para una vista de solo lectura que no es un reporte: usar `siaf-page-shell` con `siaf-page-header`.
@@ -139,10 +146,12 @@ let siguienteId = 0;
     DonutChartComponent,
     EmptyStateComponent,
     FilterPillComponent,
+    FocoDirective,
     FormTableSearchComponent,
-    IconDropdownMenuComponent,
+    IconComponent,
     KpiCardComponent,
     LineChartComponent,
+    MenuComponent,
     MessageBoxComponent,
     PageHeaderComponent,
     PageShellComponent,
@@ -194,16 +203,36 @@ let siguienteId = 0;
                     data-selector-vista
                   />
                 }
-                <siaf-icon-dropdown-menu
-                  label="Exportar"
-                  icon="open_in_new"
-                  density="standard"
-                  [items]="opcionesExportacion"
-                  [menuWidth]="200"
-                  [disabled]="loading || !filasFiltradas().length"
-                  (selected)="exportar($event)"
-                  data-exportar
-                />
+                <!-- «Exportar» (Figma 36760-22227 / 22918): formato (Excel / PDF, con ícono) y «Detallado» como submenú al costado, sin flecha. -->
+                <div class="relative inline-block" data-exportar>
+                  <button
+                    class="inline-flex min-h-10 items-center gap-siaf-xs rounded-siaf-md border border-[var(--sys-color-border-states-enabled)] px-siaf-md py-siaf-xs text-[var(--sys-color-text-neutral-medium)] transition enabled:hover:bg-surface-muted enabled:active:bg-[var(--sys-color-bg-states-dark-pressed)] focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--sys-color-border-states-focus)] disabled:cursor-not-allowed disabled:opacity-40"
+                    type="button"
+                    aria-haspopup="menu"
+                    [attr.aria-expanded]="exportAbierto()"
+                    [disabled]="loading || !filasFiltradas().length"
+                    (click)="exportAbierto.set(!exportAbierto())"
+                  >
+                    <siaf-icon name="open_in_new" [size]="24" />
+                    <span class="text-sm font-medium leading-normal">Exportar</span>
+                  </button>
+
+                  @if (exportAbierto()) {
+                    <button class="fixed inset-0 z-20 cursor-default bg-transparent" type="button" tabindex="-1" aria-hidden="true" (mousedown)="$event.preventDefault()" (click)="exportAbierto.set(false)"></button>
+                    <div class="absolute right-0 top-12 z-30" siafFoco [siafFocoAtrapar]="false" (siafFocoSalida)="exportAbierto.set(false)" (click)="$event.stopPropagation()">
+                      <siaf-menu
+                        density="standard"
+                        leading="icon"
+                        submenuLeading="none"
+                        [items]="formatosMenu"
+                        [width]="200"
+                        ariaLabel="Exportar resultados"
+                        (selected)="exportar($event)"
+                        (closed)="exportAbierto.set(false)"
+                      />
+                    </div>
+                  }
+                </div>
               </div>
             </header>
 
@@ -325,7 +354,7 @@ let siguienteId = 0;
                   ariaLabel="Buscar en el resultado"
                   (valueChange)="buscar($event)"
                   (filter)="advancedFiltersRequested.emit()"
-                  (columns)="columnsRequested.emit()"
+                  (columns)="abrirPanelColumnas()"
                 />
 
                 @if (configuracion().presetFilters?.length) {
@@ -342,7 +371,7 @@ let siguienteId = 0;
                 }
 
                 <siaf-report-table
-                  [columns]="configuracion().columns"
+                  [columns]="columnasVisibles()"
                   [rows]="filasPagina()"
                   [rowKey]="configuracion().rowKey"
                   [ariaLabel]="configuracion().tableLabel ?? configuracion().title"
@@ -379,6 +408,69 @@ let siguienteId = 0;
       (closed)="panelAbierto.set(false)"
       (applied)="aplicar($event)"
     />
+
+    <!-- Panel «Columnas visibles» (Figma node 36760-21984): grupos tomados del «group» de cada columna; la columna
+         llave (rowKey) queda siempre visible. -->
+    @if (panelColumnas()) {
+      <section
+        class="fixed inset-y-0 left-0 right-0 z-50 bg-black/55 pl-0 lg:pl-[65px]"
+        aria-modal="true"
+        role="dialog"
+        aria-labelledby="query-columns-panel-title"
+        (click)="panelColumnas.set(false)"
+      >
+        <aside
+          class="absolute bottom-0 right-0 top-0 flex w-full max-w-[420px] flex-col overflow-hidden bg-surface shadow-siaf-lg"
+          [siafFoco]="panelColumnas()"
+          (siafFocoEscape)="panelColumnas.set(false)"
+          (click)="$event.stopPropagation()"
+        >
+          <header class="flex h-14 shrink-0 items-center gap-siaf-xs px-siaf-xl">
+            <h2 id="query-columns-panel-title" class="m-0 flex-1 text-base font-bold uppercase tracking-[0.02px] text-text">Columnas visibles</h2>
+            <button
+              class="inline-flex size-10 items-center justify-center rounded-siaf-md text-text transition hover:bg-surface-muted active:bg-[var(--sys-color-bg-states-dark-pressed)]"
+              type="button"
+              aria-label="Cerrar"
+              (click)="panelColumnas.set(false)"
+            >
+              <siaf-icon name="close" [size]="24" />
+            </button>
+          </header>
+          <div class="min-h-0 flex-1 overflow-y-auto bg-[var(--sys-color-bg-surfaces-surface-highest)] px-siaf-xl py-siaf-md">
+            <div class="flex flex-col gap-siaf-lg">
+              <label class="flex min-h-12 cursor-pointer items-center gap-siaf-md px-siaf-md py-siaf-sm text-sm uppercase text-[var(--sys-color-text-neutral-medium)]">
+                <input class="size-4 accent-[var(--sys-color-icon-states-enabled)]" type="checkbox" [checked]="todasColumnasVisibles()" (change)="alternarTodasColumnas($event)" />
+                Seleccionar todo
+              </label>
+              @for (grupo of gruposColumnas(); track grupo.titulo) {
+                <section class="grid gap-siaf-xs">
+                  @if (grupo.titulo) {
+                    <h3 class="m-0 px-[18px] text-xs font-normal uppercase text-[var(--sys-color-text-neutral-medium)]">{{ grupo.titulo }}</h3>
+                  }
+                  @for (columna of grupo.columnas; track columna.key) {
+                    @if (esColumnaBloqueada(columna.key)) {
+                      <label class="flex min-h-12 items-center gap-siaf-md px-siaf-md py-siaf-sm text-sm text-text-muted">
+                        <input class="size-4" type="checkbox" checked disabled />
+                        {{ columna.label }}
+                      </label>
+                    } @else {
+                      <label class="flex min-h-12 cursor-pointer items-center gap-siaf-md px-siaf-md py-siaf-sm text-sm text-[var(--sys-color-text-neutral-medium)] transition hover:bg-surface-muted">
+                        <input class="size-4 accent-[var(--sys-color-icon-states-enabled)]" type="checkbox" [checked]="esColumnaVisibleBorrador(columna.key)" (change)="alternarColumna(columna.key, $event)" />
+                        {{ columna.label }}
+                      </label>
+                    }
+                  }
+                </section>
+              }
+            </div>
+          </div>
+          <footer class="flex shrink-0 items-center justify-end gap-siaf-xs px-siaf-md py-siaf-sm">
+            <button class="inline-flex min-h-10 items-center justify-center rounded-siaf-md border border-[var(--sys-color-border-states-enabled)] px-siaf-md py-siaf-xs text-sm font-medium text-text transition hover:bg-surface-muted" type="button" (click)="panelColumnas.set(false)">Cancelar</button>
+            <siaf-button variant="primary" size="md" [disabled]="!columnasCambiadas()" (click)="aceptarColumnas()">Aceptar</siaf-button>
+          </footer>
+        </aside>
+      </section>
+    }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -424,6 +516,77 @@ export class QueryReportPageComponent {
   readonly opcionesTamano = [10, 25, 50, 100];
   readonly idTitulo = `siaf-consulta-resultado-${++siguienteId}`;
 
+  /** Panel «Columnas visibles» y las columnas ocultas (aplicadas / borrador mientras el panel está abierto). */
+  readonly panelColumnas = signal(false);
+  readonly columnasOcultas = signal<ReadonlySet<string>>(new Set());
+  readonly borradorColumnas = signal<ReadonlySet<string>>(new Set());
+
+  /** Columnas que ve la tabla: todas menos las ocultas aplicadas. */
+  readonly columnasVisibles = computed(() => this.configuracion().columns.filter((columna) => !this.columnasOcultas().has(columna.key)));
+
+  /** Columnas agrupadas por su `group` (en orden de aparición), para las secciones del panel. */
+  readonly gruposColumnas = computed(() => {
+    const grupos: { titulo: string; columnas: ReportTableColumn[] }[] = [];
+    for (const columna of this.configuracion().columns) {
+      const titulo = columna.group ?? '';
+      const ultimo = grupos[grupos.length - 1];
+      if (ultimo && ultimo.titulo === titulo) ultimo.columnas.push(columna);
+      else grupos.push({ titulo, columnas: [columna] });
+    }
+    return grupos;
+  });
+
+  /** «Seleccionar todo» marcado cuando el borrador no oculta ninguna columna. */
+  readonly todasColumnasVisibles = computed(() => this.borradorColumnas().size === 0);
+
+  /** El borrador difiere de lo aplicado: habilita «Aceptar». */
+  readonly columnasCambiadas = computed(() => {
+    const borrador = this.borradorColumnas();
+    const aplicadas = this.columnasOcultas();
+    if (borrador.size !== aplicadas.size) return true;
+    for (const clave of borrador) if (!aplicadas.has(clave)) return true;
+    return false;
+  });
+
+  abrirPanelColumnas(): void {
+    this.borradorColumnas.set(new Set(this.columnasOcultas()));
+    this.panelColumnas.set(true);
+    this.columnsRequested.emit();
+  }
+
+  /** La columna llave (rowKey) no se puede ocultar: su casilla va marcada y deshabilitada. */
+  esColumnaBloqueada(clave: string): boolean {
+    return clave === this.configuracion().rowKey;
+  }
+
+  esColumnaVisibleBorrador(clave: string): boolean {
+    return !this.borradorColumnas().has(clave);
+  }
+
+  alternarColumna(clave: string, evento: Event): void {
+    if (this.esColumnaBloqueada(clave)) return;
+    const visible = (evento.target as HTMLInputElement).checked;
+    const ocultas = new Set(this.borradorColumnas());
+    if (visible) ocultas.delete(clave);
+    else ocultas.add(clave);
+    this.borradorColumnas.set(ocultas);
+  }
+
+  alternarTodasColumnas(evento: Event): void {
+    if ((evento.target as HTMLInputElement).checked) {
+      this.borradorColumnas.set(new Set());
+      return;
+    }
+    const rowKey = this.configuracion().rowKey;
+    const ocultar = this.configuracion().columns.filter((columna) => columna.key !== rowKey).map((columna) => columna.key);
+    this.borradorColumnas.set(new Set(ocultar));
+  }
+
+  aceptarColumnas(): void {
+    this.columnasOcultas.set(new Set(this.borradorColumnas()));
+    this.panelColumnas.set(false);
+  }
+
   /** Figma 22715:21316: `info` para la tabla e `insert_chart` para las gráficas; la etiqueta va en el tooltip. */
   readonly opcionesVista: ButtonGroupItem[] = [
     { label: 'Vista de datos', value: 'datos', icon: 'info' },
@@ -431,13 +594,13 @@ export class QueryReportPageComponent {
   ];
 
   /**
-   * Figma «Opciones de tabla» (22402:16485). Material Icons no trae los archivos XLS y PDF del Figma: Excel usa
-   * `table_view`, como el resto del kit, y PDF `picture_as_pdf`; CSV es el `table_chart` del Figma.
+   * «Exportar» (Figma 36760-22227 / 22918): el formato (Excel / PDF, con su ícono) y, al costado, su tipo de informe
+   * «Detallado» como submenú (sin flecha); elegir «Detallado» dispara la descarga con ese formato.
    */
-  readonly opcionesExportacion: IconDropdownMenuItem[] = [
-    { label: 'Excel', value: 'excel', icon: 'table_view' },
-    { label: 'CSV', value: 'csv', icon: 'table_chart' },
-    { label: 'PDF', value: 'pdf', icon: 'picture_as_pdf' },
+  readonly exportAbierto = signal(false);
+  readonly formatosMenu: MenuItem[] = [
+    { label: 'Excel', value: 'excel', icon: 'table_view', sinFlecha: true, children: [{ label: 'Detallado', value: 'excel' }] },
+    { label: 'PDF', value: 'pdf', icon: 'picture_as_pdf', sinFlecha: true, children: [{ label: 'Detallado', value: 'pdf' }] },
   ];
 
   /** Sin `charts` en la configuración no hay selector y siempre se ve la tabla. */
@@ -445,18 +608,29 @@ export class QueryReportPageComponent {
 
   readonly parametrosAplicados = computed<ParametroAplicado[]>(() => {
     const valores = this.parametros() ?? {};
-    return this.configuracion()
-      .parameterFields.filter((campo) => tieneValor(valores[campo.key]))
-      .map((campo) => {
-        const valor = valores[campo.key];
-        const etiqueta = (v: string): string => campo.options?.find((o) => o.value === v)?.label ?? v;
-        const texto = Array.isArray(valor)
-          ? valor.map(etiqueta).join(', ')
-          : campo.type === 'date'
-            ? fechaVisible(valor)
-            : etiqueta(valor);
-        return { label: campo.label, value: texto, icon: campo.icon };
-      });
+    const campos = this.configuracion().parameterFields;
+
+    // Texto de un campo con valor: lista de opciones, fecha dd/mm/aaaa o la etiqueta de la opción elegida.
+    const textoCampo = (campo: QueryReportParameterField): string => {
+      const valor = valores[campo.key];
+      const etiqueta = (v: string): string => campo.options?.find((o) => o.value === v)?.label ?? v;
+      return Array.isArray(valor) ? valor.map(etiqueta).join(', ') : campo.type === 'date' ? fechaVisible(valor) : etiqueta(valor);
+    };
+
+    const aplicados: ParametroAplicado[] = [];
+    for (let i = 0; i < campos.length; i++) {
+      const campo = campos[i];
+      const siguiente = campos[i + 1];
+      // Dos fechas contiguas con valor (desde / hasta) se muestran como un solo card «Fecha» con el rango (Figma 36760-22171).
+      if (campo.type === 'date' && siguiente?.type === 'date' && tieneValor(valores[campo.key]) && tieneValor(valores[siguiente.key])) {
+        const base = campo.label.replace(/\s*(desde|hasta)\s*$/i, '').trim();
+        aplicados.push({ label: base || campo.label, value: `${textoCampo(campo)} - ${textoCampo(siguiente)}`, icon: campo.icon });
+        i++;
+        continue;
+      }
+      if (tieneValor(valores[campo.key])) aplicados.push({ label: campo.label, value: textoCampo(campo), icon: campo.icon });
+    }
+    return aplicados;
   });
 
   readonly filasFiltradas = computed<QueryReportRow[]>(() => {
@@ -557,8 +731,10 @@ export class QueryReportPageComponent {
     this.pagina.set(1);
   }
 
-  exportar(formato: string): void {
-    const format = FORMATOS_EXPORTACION.find((f) => f === formato);
+  /** «Detallado» (submenú de Excel o PDF) dispara la descarga con el formato elegido. */
+  exportar(valor: string): void {
+    const format = FORMATOS_EXPORTACION.find((f) => f === valor);
+    this.exportAbierto.set(false);
     if (!format) return;
     this.exported.emit({ format, parameters: this.parametros() ?? {}, rows: this.filasFiltradas() });
   }

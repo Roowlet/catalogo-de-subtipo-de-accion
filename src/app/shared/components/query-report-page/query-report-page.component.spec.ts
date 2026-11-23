@@ -144,7 +144,7 @@ describe('QueryReportPageComponent', () => {
     expect(filasTabla().length).toBe(12);
   });
 
-  it('«Exportar» abre el menú Excel, CSV y PDF y emite el formato con los parámetros y las filas filtradas; las pestañas emiten tabChanged', () => {
+  it('«Exportar» abre el menú Excel y PDF (cada uno con su submenú «Detallado») y emite el formato con los parámetros y las filas filtradas; las pestañas emiten tabChanged', () => {
     const exportados: QueryReportExportEvent[] = [];
     const pestanas: string[] = [];
     pagina.exported.subscribe((e) => exportados.push(e));
@@ -157,15 +157,23 @@ describe('QueryReportPageComponent', () => {
     expect(exportar.textContent).toContain('Exportar');
     exportar.click();
     fixture.detectChanges();
-    const opciones = Array.from(el().querySelectorAll<HTMLElement>('[data-exportar] [role="menuitem"]'));
-    expect(opciones.map((o) => o.textContent)).toEqual([jasmine.stringContaining('Excel'), jasmine.stringContaining('CSV'), jasmine.stringContaining('PDF')]);
-    expect(opciones.map((o) => o.querySelector('siaf-icon')?.textContent?.trim())).toEqual(['table_view', 'table_chart', 'picture_as_pdf']);
-    expect(opciones[0].classList).withContext('menú «Opciones de tabla» del Figma, de 48 px').toContain('min-h-12');
-    opciones[1].click();
+    const formatos = Array.from(el().querySelectorAll<HTMLElement>('[data-exportar] [role="menuitem"]'));
+    expect(formatos.map((o) => o.textContent)).toEqual([jasmine.stringContaining('Excel'), jasmine.stringContaining('PDF')]);
+    expect(formatos.map((o) => o.querySelector('siaf-icon')?.textContent?.trim())).toEqual(['table_view', 'picture_as_pdf']);
+    expect(formatos[0].classList).withContext('menú «Opciones de tabla» del Figma, de 48 px').toContain('min-h-12');
+    // Sin flecha de submenú en los formatos (Figma 36760-22227).
+    expect(formatos[0].textContent).not.toContain('arrow_right');
+
+    // PDF abre su submenú «Detallado», que dispara la exportación.
+    formatos[1].click();
+    fixture.detectChanges();
+    const detallado = Array.from(el().querySelectorAll<HTMLElement>('[data-submenu] [role="menuitem"]'));
+    expect(detallado.map((o) => o.textContent?.trim())).toEqual(['Detallado']);
+    detallado[0].click();
     pagina.cambiarPestana('resumen');
 
     expect(exportados.length).toBe(1);
-    expect(exportados[0].format).toBe('csv');
+    expect(exportados[0].format).toBe('pdf');
     expect(exportados[0].rows.map((r) => r['secuencia'])).toEqual(['000002', '000005', '000008', '000011']);
     expect(exportados[0].parameters['desde']).toBe('2026-06-28');
     expect(pestanas).toEqual(['resumen']);
@@ -286,7 +294,10 @@ describe('QueryReportPageComponent', () => {
 
       botonExportar().click();
       fixture.detectChanges();
-      el().querySelectorAll<HTMLElement>('[data-exportar] [role="menuitem"]')[2].click();
+      // PDF (segundo formato) → su submenú «Detallado» dispara la exportación.
+      el().querySelectorAll<HTMLElement>('[data-exportar] [role="menuitem"]')[1].click();
+      fixture.detectChanges();
+      el().querySelector<HTMLElement>('[data-submenu] [role="menuitem"]')!.click();
 
       expect(exportados.map((e) => [e.format, e.rows.length])).toEqual([['pdf', 12]]);
     });

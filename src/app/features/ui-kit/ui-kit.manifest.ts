@@ -5952,7 +5952,7 @@ export const MANIFIESTO_UI_KIT: readonly FichaComponente[] = [
         "descripcion": "Emite el `value` del item seleccionado (o `label` si no tiene value)."
       }
     ],
-    "usar": "- Botones de ícono de la barra de búsqueda de la bandeja (`siaf-documents-records-page`): Campos (`layers`), Favorito\n  (`star_border`) y Más opciones (`more_vert`).\n- Exportar con `variant=\"accent\"` e ícono `file_download` en el encabezado de resultados de las consultas (Plan de\n  Cuentas, Asiento de ajuste, Catálogo de ajuste, Contabilización y Libros contables).\n- Acciones sobre las filas marcadas, proyectado en `siaf-table-controls` con el atributo `tableAction` (Gestor de\n  Usuarios de Admin, descarga de Libros contables), y el menú ⋮ de `siaf-expansion-panel`.\n- Con `label` cuando el Figma pide un botón con texto que abre el menú: «Exportar» (Excel, CSV y PDF) del resultado de\n  `siaf-query-report-page`, con `density=\"standard\"` como su menú «Opciones de tabla» (nodo 22402:16485).",
+    "usar": "- Botones de ícono de la barra de búsqueda de la bandeja (`siaf-documents-records-page`): Campos (`layers`), Favorito\n  (`star_border`) y Más opciones (`more_vert`).\n- Exportar con `variant=\"accent\"` e ícono `file_download` en el encabezado de resultados de las consultas (Plan de\n  Cuentas, Asiento de ajuste, Catálogo de ajuste, Contabilización y Libros contables).\n- Acciones sobre las filas marcadas, proyectado en `siaf-table-controls` con el atributo `tableAction` (Gestor de\n  Usuarios de Admin, descarga de Libros contables), y el menú ⋮ de `siaf-expansion-panel`.\n- Con `label` cuando el Figma pide un botón con texto que abre un menú corto de un nivel, con `density=\"standard\"`\n  como el menú «Opciones de tabla» (nodo 22402:16485).",
     "evitar": "- Para una sola acción: usar `siaf-button` con `iconOnly` y `ariaLabel`, sin menú.\n- Con opciones en dos niveles: usar `siaf-cascading-menu`.\n- Para filtrar por un valor que debe quedar a la vista: usar `siaf-filter-pill`.\n- Un botón de ícono con una lista flotante hecha a mano: este componente ya da `aria-expanded`, Escape y el cierre al\n  pulsar fuera, y dibuja el panel con `siaf-menu`.",
     "teclado": "- **Tab**: enfoca el botón.\n- **Enter / Espacio**: abren o cierran el menú; al abrir, el foco entra en la primera opción habilitada.\n- **Flecha arriba / abajo** e **Inicio / Fin**: recorren las opciones (de `siaf-menu`).\n- **Enter / Espacio** sobre una opción: la eligen y cierran el menú, salvo con `closeOnSelect=false`.\n- **Escape**: cierra el menú y el foco vuelve al botón.\n- **Tab** desde el menú: lo cierra y el foco sigue al control siguiente.",
     "accesibilidad": "- **4.1.2 Nombre, función y valor (A)**: el disparador es un `<button>` con `aria-label` (por defecto «Más opciones»:\n  el padre debe dar uno propio, como «Exportar resultados»), `aria-haspopup=\"menu\"` y `aria-expanded`; el panel es\n  `siaf-menu` con el mismo nombre. Con `label`, el texto visible nombra el botón y el menú, sin `aria-label`.\n- **2.5.3 Etiqueta en el nombre (A)**: con `label`, el nombre es el mismo texto que se ve.\n- **1.1.1 Contenido no textual (A)**: el ícono del botón es decorativo (`siaf-icon`); el nombre lo da `aria-label`.\n- **2.4.3 Orden del foco (A)**: con `siafFoco`, al abrir el foco entra en la primera opción y al cerrar (Escape o\n  elegir) vuelve al botón; salir con Tab cierra el menú. La capa que cierra al pulsar fuera no es parada de Tab.\n- **2.4.7 Foco visible (AA)**: el botón tiene contorno de 2 px `bg-brand-accent` en `accent` (4.89:1 claro / 3.14:1\n  oscuro), el anillo del kit `border-states-focus` con `label` y el anillo del navegador en `ghost`; las opciones, el\n  contorno interior azul de `siaf-menu` (`border-states-focus`).\n- **1.4.11 Contraste no textual (AA)**: en `accent`, relleno 4.89:1 / 3.14:1 sobre la superficie e ícono blanco\n  (`text-brand-white` sobre `bg-brand-accent`) 4.89:1 / 5.65:1; en `ghost` el ícono hereda el color del texto del\n  padre.\n- **2.5.8 Tamaño del objetivo (AA)**: botón de 40 px de alto y opciones de 32 px (`compact`) o 48 px (`standard`).",
@@ -9219,7 +9219,7 @@ export const MANIFIESTO_UI_KIT: readonly FichaComponente[] = [
     "capa": "components",
     "importacion": "@siaf/shared/components/query-report-page/query-report-page.component",
     "archivo": "src/app/shared/components/query-report-page/query-report-page.component.ts",
-    "descripcion": "Plantilla de pantalla «Consultas y reportes» (Guía de Estructura de Pantallas, nodo 9455:107865): la nueva versión de\nlas consultas, armada desde un `QueryReportConfig`. Antes de consultar muestra el estado vacío; «Parámetros» abre\n`siaf-query-parameters-panel` y, al aplicar, emite `queried` para que la pantalla traiga el resultado. Con resultado\npinta «Parámetros aplicados», y en «Resultado de reporte» las pestañas, la card resumen, el buscador (Filtrar y\nColumnas), los filtros predeterminados, la tabla de datos detallada y la paginación. Buscar, filtrar y paginar\nocurren sobre las filas recibidas.\n\nCon `charts` en la configuración, el encabezado del resultado suma el selector «Vista de datos | Vista de gráficas»\n(nodo 22715:21316) y la vista de gráficas (nodo 22402:16766): tarjetas KPI y gráficos calculados con las mismas filas\nque muestra la tabla, es decir, después de buscar y filtrar; un gráfico que se queda sin datos muestra un aviso en vez\nde ejes vacíos. Esa vista se carga con `@defer` al abrirla, así Chart.js\nno pesa en la pantalla hasta que alguien la usa. «Exportar» abre el menú Excel, CSV y PDF y emite `exported` con el\nformato.\n\nNo llama a la API: la pantalla consulta y entrega `result` (con `loading` mientras tanto).",
+    "descripcion": "Plantilla de pantalla «Consultas y reportes» (Guía de Estructura de Pantallas, nodo 9455:107865): la nueva versión de\nlas consultas, armada desde un `QueryReportConfig`. Antes de consultar muestra el estado vacío; «Parámetros» abre\n`siaf-query-parameters-panel` y, al aplicar, emite `queried` para que la pantalla traiga el resultado. Con resultado\npinta «Parámetros aplicados», y en «Resultado de reporte» las pestañas, la card resumen, el buscador (Filtrar y\nColumnas), los filtros predeterminados, la tabla de datos detallada y la paginación. Buscar, filtrar y paginar\nocurren sobre las filas recibidas.\n\nCon `charts` en la configuración, el encabezado del resultado suma el selector «Vista de datos | Vista de gráficas»\n(nodo 22715:21316) y la vista de gráficas (nodo 22402:16766): tarjetas KPI y gráficos calculados con las mismas filas\nque muestra la tabla, es decir, después de buscar y filtrar; un gráfico que se queda sin datos muestra un aviso en vez\nde ejes vacíos. Esa vista se carga con `@defer` al abrirla, así Chart.js\nno pesa en la pantalla hasta que alguien la usa. «Exportar» abre un menú de dos niveles (Excel / PDF y, dentro, el\ntipo de informe «Detallado») y emite `exported` con el\nformato.\n\nNo llama a la API: la pantalla consulta y entrega `result` (con `loading` mientras tanto).",
     "usaSesion": false,
     "proyectaContenido": false,
     "entradas": [
@@ -9289,7 +9289,7 @@ export const MANIFIESTO_UI_KIT: readonly FichaComponente[] = [
         "descripcion": null
       }
     ],
-    "usar": "- Para una pantalla «Consultas y reportes» de un proceso: título, migas, campos de parámetros, columnas (con grupos y\n  la última fija), pestañas y filtros predeterminados en la configuración.\n- `tabs` cuando el reporte tiene varias vistas del mismo resultado: la pantalla recibe `tabChanged` y entrega el\n  resultado de esa pestaña.\n- `charts` para la vista de gráficas: cada KPI suma una columna (o cuenta filas), con un filtro opcional por valor, y\n  cada gráfico agrupa por una columna (o por mes, con una fecha), en valores, índice respecto de la primera categoría\n  (`index`) o variación respecto de ella (`change`). `width: 'narrow'` pone un gráfico en la columna de 336 px a la\n  derecha del anterior, como en el Figma.\n- `exported` para generar el archivo: trae el formato elegido y las filas que quedaron tras buscar y filtrar.\n- `favoritesRequested`, `advancedFiltersRequested` y `columnsRequested` para lo que la pantalla resuelve por su cuenta\n  mientras la plantilla no traiga esos paneles.",
+    "usar": "- Para una pantalla «Consultas y reportes» de un proceso: título, migas, campos de parámetros, columnas (con grupos y\n  la última fija), pestañas y filtros predeterminados en la configuración.\n- `tabs` cuando el reporte tiene varias vistas del mismo resultado: la pantalla recibe `tabChanged` y entrega el\n  resultado de esa pestaña.\n- `charts` para la vista de gráficas: cada KPI suma una columna (o cuenta filas), con un filtro opcional por valor, y\n  cada gráfico agrupa por una columna (o por mes, con una fecha), en valores, índice respecto de la primera categoría\n  (`index`) o variación respecto de ella (`change`). `width: 'narrow'` pone un gráfico en la columna de 336 px a la\n  derecha del anterior, como en el Figma.\n- `exported` para generar el archivo: trae el formato elegido y las filas que quedaron tras buscar y filtrar.\n- «Columnas visibles»: la plantilla trae su propio panel lateral (icono de columnas del buscador), con las columnas\n  agrupadas por su `group` y la columna llave (`rowKey`) siempre visible; además emite `columnsRequested` por si la\n  pantalla quiere reaccionar.\n- `favoritesRequested` y `advancedFiltersRequested` para lo que la pantalla resuelve por su cuenta mientras la\n  plantilla no traiga esos paneles.",
     "evitar": "- Para la bandeja de documentos y registros de un proceso: usar `siaf-documents-records-page`.\n- Para una vista de solo lectura que no es un reporte: usar `siaf-page-shell` con `siaf-page-header`.\n- Maquetar otra consulta con estado vacío, panel de búsqueda y tabla a mano: pasar su configuración a esta\n  plantilla.\n- Calcular los KPI o los gráficos en la pantalla y pintarlos aparte: declararlos en `charts`, así siguen a la búsqueda\n  y a los filtros de la tabla.",
     "teclado": "- **Tab**: recorre las migas, «Favoritos» y «Parámetros», las tarjetas de parámetros aplicados, el selector de vista,\n  «Exportar», las pestañas y, en la vista de datos, el buscador y sus botones, los filtros, la tabla y la paginación;\n  en la de gráficas, cada gráfico.\n- **Enter** en el buscador: busca en todas las columnas (sin distinguir mayúsculas ni tildes) y vuelve a la primera\n  página.\n- El panel de parámetros, el selector de vista, el menú «Exportar», las pestañas, las píldoras, la tabla y los\n  gráficos siguen su componente.",
     "accesibilidad": "- **1.3.1 Información y relaciones (A)**: el título de la pantalla es el `h1` de `siaf-page-header`; el de la tarjeta\n  del resultado, un `h2`, y el de cada gráfico, el `h3` de `siaf-chart-section`.\n- **4.1.2 Nombre, función y valor (A)**: el selector de vista es un grupo «Vista del resultado» con `aria-pressed` en\n  cada botón, nombrado como su tooltip; «Exportar» anuncia su menú con `aria-haspopup` y `aria-expanded`.\n- **4.1.3 Mensajes de estado (AA)**: el total de filas tras buscar o filtrar se anuncia en una región\n  `aria-live=\"polite\"` que no se ve.\n- **2.4.3 Orden del foco (A)**: al cerrar el panel de parámetros el foco vuelve a «Parámetros».\n- **3.2.2 Al introducir datos (A)**: escribir en el buscador no cambia la tabla hasta pulsar Enter; elegir un filtro\n  predeterminado sí filtra al momento, y se anuncia.\n- **1.1.1 Contenido no textual (A)**: cada gráfico se llama como su título y lleva su tabla de datos oculta; con una\n  búsqueda o un filtro activos, una nota avisa con cuántas filas se calcularon.\n- **1.4.10 Reajuste del contenido (AA)**: en pantallas angostas las acciones del encabezado bajan, las tarjetas KPI\n  y los gráficos pasan a una columna y la tabla se desplaza dentro de su zona, sin desplazar la página.",
@@ -9308,13 +9308,26 @@ export const MANIFIESTO_UI_KIT: readonly FichaComponente[] = [
       }
     ],
     "aria": {
-      "roles": [],
+      "roles": [
+        "dialog"
+      ],
       "atributos": [
+        "aria-expanded",
+        "aria-haspopup",
+        "aria-hidden",
+        "aria-label",
         "aria-labelledby",
-        "aria-live"
+        "aria-live",
+        "aria-modal"
       ]
     },
     "tokens": [
+      {
+        "token": "--sys-color-bg-states-dark-pressed",
+        "via": [
+          "var()"
+        ]
+      },
       {
         "token": "--sys-color-bg-surfaces-surface",
         "via": [
@@ -9322,7 +9335,50 @@ export const MANIFIESTO_UI_KIT: readonly FichaComponente[] = [
         ]
       },
       {
+        "token": "--sys-color-bg-surfaces-surface-high",
+        "via": [
+          "bg-surface-muted"
+        ]
+      },
+      {
+        "token": "--sys-color-bg-surfaces-surface-highest",
+        "via": [
+          "var()"
+        ]
+      },
+      {
+        "token": "--sys-color-border-states-enabled",
+        "via": [
+          "var()"
+        ]
+      },
+      {
+        "token": "--sys-color-border-states-focus",
+        "via": [
+          "var()"
+        ]
+      },
+      {
+        "token": "--sys-color-icon-states-enabled",
+        "via": [
+          "var()"
+        ]
+      },
+      {
         "token": "--sys-color-text-neutral-high",
+        "via": [
+          "text-text",
+          "var()"
+        ]
+      },
+      {
+        "token": "--sys-color-text-neutral-low",
+        "via": [
+          "text-text-muted"
+        ]
+      },
+      {
+        "token": "--sys-color-text-neutral-medium",
         "via": [
           "var()"
         ]
@@ -9340,19 +9396,30 @@ export const MANIFIESTO_UI_KIT: readonly FichaComponente[] = [
           "gap-siaf-md",
           "p-siaf-md",
           "pb-siaf-md",
-          "pt-siaf-md"
+          "pt-siaf-md",
+          "px-siaf-md",
+          "py-siaf-md"
         ]
       },
       {
         "token": "--sys-gap-base-sm",
         "via": [
-          "gap-siaf-sm"
+          "gap-siaf-sm",
+          "py-siaf-sm"
         ]
       },
       {
         "token": "--sys-gap-base-xl",
         "via": [
+          "px-siaf-xl",
           "py-siaf-xl"
+        ]
+      },
+      {
+        "token": "--sys-gap-base-xs",
+        "via": [
+          "gap-siaf-xs",
+          "py-siaf-xs"
         ]
       },
       {
@@ -9360,9 +9427,16 @@ export const MANIFIESTO_UI_KIT: readonly FichaComponente[] = [
         "via": [
           "rounded-siaf-md"
         ]
+      },
+      {
+        "token": "--sys-shadow-lg",
+        "via": [
+          "shadow-siaf-lg"
+        ]
       }
     ],
     "usa": [
+      "[siafFoco]",
       "message-box",
       "siaf-bar-chart",
       "siaf-button",
@@ -9373,9 +9447,10 @@ export const MANIFIESTO_UI_KIT: readonly FichaComponente[] = [
       "siaf-empty-state",
       "siaf-filter-pill",
       "siaf-form-table-search",
-      "siaf-icon-dropdown-menu",
+      "siaf-icon",
       "siaf-kpi-card",
       "siaf-line-chart",
+      "siaf-menu",
       "siaf-page-header",
       "siaf-page-shell",
       "siaf-pagination",

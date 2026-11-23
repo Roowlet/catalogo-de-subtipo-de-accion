@@ -9,6 +9,8 @@ export const CONSULTAS_ROUTE = `${PROCESS_ROUTE}/consultas`;
 
 /** Hoja «Documentos y registros»: arma las migas de pan de la página de documentos. */
 export const PROCESS_ID = 'catalogo-subtipo-accion-documentos';
+/** Hoja «Consultas y reportes»: arma las migas de pan de la página de reportes. */
+export const CONSULTAS_PROCESS_ID = 'catalogo-subtipo-accion-consultas';
 /** Nodo padre «Catálogo de subtipo de acción»: migas de pan del formulario de solicitud. */
 export const CATALOGO_PROCESS_ID = 'catalogo-subtipo-accion';
 

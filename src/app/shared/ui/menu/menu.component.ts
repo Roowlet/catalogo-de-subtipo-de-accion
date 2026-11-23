@@ -16,6 +16,8 @@ export interface MenuItem {
   children?: MenuItem[];
   /** Muestra la flecha `arrow_right` sin `children`: el submenú lo abre y maneja el padre. */
   hasChildren?: boolean;
+  /** Oculta la flecha `arrow_right` aunque tenga `children`/`hasChildren` (el submenú sigue abriéndose al costado). */
+  sinFlecha?: boolean;
   /** Línea divisoria después de esta opción. */
   divider?: boolean;
   disabled?: boolean;
@@ -142,7 +144,7 @@ export type MenuDensity = 'standard' | 'compact';
             }
           }
           <span class="min-w-0 flex-1 truncate text-sm leading-[normal]" siafTooltip>{{ item.label }}</span>
-          @if (item.children?.length || item.hasChildren || item.trailingIcon) {
+          @if (item.trailingIcon || ((item.children?.length || item.hasChildren) && !item.sinFlecha)) {
             <siaf-icon class="shrink-0 text-[var(--sys-color-icon-states-enabled)]" [name]="item.trailingIcon || 'arrow_right'" [size]="tamIcono" />
           }
         </div>

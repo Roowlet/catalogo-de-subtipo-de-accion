@@ -55,8 +55,8 @@ export type IconDropdownMenuVariant = 'ghost' | 'accent';
  *   Cuentas, Asiento de ajuste, Catálogo de ajuste, Contabilización y Libros contables).
  * - Acciones sobre las filas marcadas, proyectado en `siaf-table-controls` con el atributo `tableAction` (Gestor de
  *   Usuarios de Admin, descarga de Libros contables), y el menú ⋮ de `siaf-expansion-panel`.
- * - Con `label` cuando el Figma pide un botón con texto que abre el menú: «Exportar» (Excel, CSV y PDF) del resultado de
- *   `siaf-query-report-page`, con `density="standard"` como su menú «Opciones de tabla» (nodo 22402:16485).
+ * - Con `label` cuando el Figma pide un botón con texto que abre un menú corto de un nivel, con `density="standard"`
+ *   como el menú «Opciones de tabla» (nodo 22402:16485).
  * @evitar
  * - Para una sola acción: usar `siaf-button` con `iconOnly` y `ariaLabel`, sin menú.
  * - Con opciones en dos niveles: usar `siaf-cascading-menu`.
